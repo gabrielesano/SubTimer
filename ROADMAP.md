@@ -2,17 +2,21 @@
 
 ## Audio atmosfera
 
-- ~~**Fischio arbitro all'avvio tempo**~~: ✅ implementato — beep sonoro
-  alla pressione di Play (ogni ripresa, non solo inizio fase).
-- **Doppio fischio a fine primo tempo**: quando si passa da 1T a 2T.
-- **Triplo fischio a fine partita**: quando si passa a FINITA.
+- ~~**Suono all'avvio tempo**~~: ✅ implementato — beep temporaneo alla
+  pressione di Play (ogni ripresa). Da sostituire con fischio arbitro
+  procedurale (rumore bianco filtrato) quando si implementa il sistema
+  audio completo.
+- **Fischio arbitro procedurale**: sostituire il beep sinusoidale attuale
+  con un fischio realistico generato via Web Audio API (rumore bianco +
+  bandpass filter). Una volta pronto, usarlo per: avvio tempo (singolo),
+  fine primo tempo (doppio), fine partita (triplo), rigore (corto).
 - **Esultanza tifosi al gol**: breve audio di folla che esulta quando
   viene registrato un gol. Variare leggermente il suono per evitare
   ripetitività (pitch random, durata variabile).
-- **Fischio rigore**: fischio corto prima di ogni tiro dal dischetto.
-- Tutti i suoni generati proceduralmente con Web Audio API (rumore
-  bianco filtrato per la folla, oscillatori per i fischi), nessun file
+- Tutti i suoni generati proceduralmente con Web Audio API, nessun file
   audio esterno.
+- **Nota**: Web Audio API non suona su iOS/Android con telefono in
+  silenzioso — è un limite di sistema, non aggirabile.
 
 ## Animazioni e feedback visivo
 
