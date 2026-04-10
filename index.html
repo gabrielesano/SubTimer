@@ -54,7 +54,7 @@ html, body {
   font-size: clamp(12px, 1.8vh, 18px);
   font-weight: 700;
   background: #2a2a2a;
-  color: #666;
+  color: #888;
   letter-spacing: 0.05em;
 }
 
@@ -625,7 +625,7 @@ html, body {
 
 .rigori-sequence .r-kick-num {
   font-size: clamp(11px, 1.4vh, 14px);
-  color: #666;
+  color: #888;
   font-weight: 700;
 }
 
@@ -641,9 +641,9 @@ html, body {
 }
 
 .r-kick-result.gol-home { background: #1e3a5f; color: #60a5fa; }
-.r-kick-result.err-home { background: #2a2a2a; color: #444; }
+.r-kick-result.err-home { background: #2a2a2a; color: #888; }
 .r-kick-result.gol-away { background: #5f1e1e; color: #f87171; }
-.r-kick-result.err-away { background: #2a2a2a; color: #444; }
+.r-kick-result.err-away { background: #2a2a2a; color: #888; }
 .r-kick-result.pending { background: #1a1a1a; border: 1px dashed #444; color: transparent; }
 
 .rigori-buttons {
@@ -1682,16 +1682,7 @@ if (saved) {
 // SERVICE WORKER
 // ═══════════════════════════════════════════
 if ('serviceWorker' in navigator) {
-  // unregister old SW, then register new one
-  navigator.serviceWorker.getRegistrations().then(function(regs) {
-    return Promise.all(regs.map(function(r) { return r.unregister(); }));
-  }).then(function() {
-    return caches.keys();
-  }).then(function(keys) {
-    return Promise.all(keys.map(function(k) { return caches.delete(k); }));
-  }).then(function() {
-    navigator.serviceWorker.register('/sw2.js');
-  });
+  navigator.serviceWorker.register('sw2.js');
 }
 </script>
 
