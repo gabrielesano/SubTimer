@@ -2,8 +2,8 @@
 
 ## Audio atmosfera
 
-- **Fischio arbitro all'avvio tempo**: un fischio singolo quando si preme
-  play per la prima volta in una fase (1T, 2T, 1TS, 2TS).
+- ~~**Fischio arbitro all'avvio tempo**~~: ✅ implementato — beep sonoro
+  alla pressione di Play (ogni ripresa, non solo inizio fase).
 - **Doppio fischio a fine primo tempo**: quando si passa da 1T a 2T.
 - **Triplo fischio a fine partita**: quando si passa a FINITA.
 - **Esultanza tifosi al gol**: breve audio di folla che esulta quando

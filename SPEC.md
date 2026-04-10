@@ -18,6 +18,9 @@ mai ricorrere alla tastiera software.
 - **Persistenza**: `localStorage` del browser. Nessun backend, nessun database.
 - **Server**: servito staticamente da `python -m http.server 8080` (o simile)
   lanciato dal PC locale. Accesso da iPad via `http://<ip-pc>:8080`.
+- **Hosting**: deploy pubblico su Cloudflare Workers tramite GitHub CI/CD.
+  URL: `https://subsubtimer.gabrielesano.workers.dev`. Ogni push su `main`
+  triggera un redeploy automatico.
 - **PWA**: l'app deve essere installabile sull'iPad come PWA standalone
   (manifest + service worker minimale per caching statico).
 - **Orientamento**: landscape obbligatorio.
@@ -246,9 +249,12 @@ utente nella pagina. Va gestito così:
 3. Rimuovi il listener dopo la prima esecuzione (one-shot).
 4. Conserva il riferimento all'`AudioContext` per i beep successivi.
 
-Il beep di scadenza fase può essere generato proceduralmente con un
-`OscillatorNode` (es. onda sinusoidale a 880 Hz per 400 ms, con inviluppo
-per evitare click) — niente file audio esterni, niente asset da caricare.
+Il beep è generato proceduralmente con un `OscillatorNode` (onda sinusoidale
+a 880 Hz per 400 ms, con inviluppo per evitare click) — niente file audio
+esterni, niente asset da caricare. Il beep viene riprodotto in due occasioni:
+- **Alla partenza del timer** (ogni volta che si preme Play).
+- **Alla scadenza della fase** (una volta sola, quando `elapsedMs` supera
+  `durataFaseMs`).
 
 Su desktop (Firefox/Chrome) questo meccanismo è ridondante ma innocuo.
 
