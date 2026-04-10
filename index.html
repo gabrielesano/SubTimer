@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#0d0d0d">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>SubTimer</title>
+<style>
+/* ── Reset & base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%; width: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #0d0d0d;
+  color: #e8e8e8;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Main layout: 3 horizontal bands ── */
+.app {
+  display: grid;
+  grid-template-rows: 8vh 1fr 16vh;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ── TOP BAR ── */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2vw;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+}
+
+.phase-badges {
+  display: flex;
+  gap: 0.8vw;
+}
+
+.phase-badge {
+  padding: 0.6vh 1.2vw;
+  border-radius: 6px;
+  font-size: clamp(12px, 1.8vh, 18px);
+  font-weight: 700;
+  background: #2a2a2a;
+  color: #666;
+  letter-spacing: 0.05em;
+}
+
+.phase-badge.active {
+  background: #d4a017;
+  color: #0d0d0d;
+}
+
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5vw;
+}
+
+.btn-next-phase {
+  padding: 0.8vh 2.5vw;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  font-size: clamp(13px, 1.8vh, 18px);
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+}
+
+.btn-next-phase:active {
+  background: #1d4ed8;
+}
+
+.btn-settings {
+  width: clamp(32px, 4vh, 48px);
+  height: clamp(32px, 4vh, 48px);
+  border: none;
+  border-radius: 8px;
+  background: #2a2a2a;
+  color: #999;
+  font-size: clamp(16px, 2.5vh, 24px);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-settings:active {
+  background: #444;
+}
+
+/* ── CENTER: scoreboard + timer ── */
+.center {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 1vh 2vw;
+  gap: 2vw;
+}
+
+/* Team columns */
+.team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1vh;
+}
+
+.team-name {
+  font-size: clamp(22px, 4.5vh, 42px);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #ccc;
+}
+
+.team-score {
+  font-size: clamp(60px, 18vh, 160px);
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.team-home .team-score { color: #60a5fa; }
+.team-away .team-score { color: #f87171; }
+
+.scorers {
+  list-style: none;
+  text-align: center;
+  font-size: clamp(12px, 1.8vh, 16px);
+  color: #999;
+  max-height: 18vh;
+  overflow-y: auto;
+  width: 100%;
+}
+
+.scorers li {
+  padding: 0.3vh 0;
+}
+
+/* Timer column */
+.timer-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2vh;
+}
+
+.timer-display {
+  font-size: clamp(48px, 14vh, 140px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  color: #e8e8e8;
+}
+
+.timer-display.expired {
+  color: #ef4444;
+}
+
+.btn-play-pause {
+  width: clamp(80px, 12vw, 140px);
+  height: clamp(60px, 8vh, 100px);
+  border: none;
+  border-radius: 12px;
+  background: #22c55e;
+  color: #0d0d0d;
+  font-size: clamp(20px, 3.5vh, 36px);
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+}
+
+.btn-play-pause.playing {
+  background: #ef4444;
+}
+
+.btn-play-pause:active {
+  filter: brightness(0.85);
+}
+
+/* ── BOTTOM BAR ── */
+.bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2vw;
+  padding: 0 2vw;
+  background: #1a1a1a;
+  border-top: 1px solid #333;
+}
+
+.btn-goal {
+  flex: 1;
+  max-width: 36vw;
+  height: clamp(60px, 10vh, 90px);
+  border: none;
+  border-radius: 12px;
+  font-size: clamp(16px, 2.8vh, 26px);
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+
+.btn-goal:active {
+  filter: brightness(0.8);
+}
+
+.btn-goal-home {
+  background: #1e3a5f;
+  color: #60a5fa;
+}
+
+.btn-goal-away {
+  background: #5f1e1e;
+  color: #f87171;
+}
+
+.btn-undo {
+  padding: 1.5vh 2.5vw;
+  border: 2px solid #444;
+  border-radius: 10px;
+  background: transparent;
+  color: #888;
+  font-size: clamp(12px, 1.8vh, 16px);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-undo:active {
+  background: #333;
+  color: #ccc;
+}
+
+/* Phase badge past state */
+.phase-badge.past {
+  background: #2a2a2a;
+  color: #999;
+}
+
+/* Settings dropdown */
+.settings-wrap {
+  position: relative;
+}
+
+.settings-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5vh;
+  background: #222;
+  border: 1px solid #444;
+  border-radius: 8px;
+  z-index: 100;
+  min-width: 200px;
+  overflow: hidden;
+}
+
+.settings-menu.open {
+  display: block;
+}
+
+.settings-menu button {
+  display: block;
+  width: 100%;
+  padding: 1.5vh 2vw;
+  border: none;
+  background: transparent;
+  color: #ccc;
+  font-size: clamp(13px, 1.8vh, 17px);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-menu button:active {
+  background: #444;
+}
+
+.settings-menu button + button {
+  border-top: 1px solid #333;
+}
+
+/* Hide timer controls in RIGORI/FINITA */
+.btn-play-pause.hidden {
+  visibility: hidden;
+}
+
+/* ── SETUP SCREEN ── */
+.screen-setup, .screen-match { display: none; }
+.screen-setup.active, .screen-match.active { display: grid; }
+.screen-setup.active { display: flex; }
+
+.screen-setup {
+  height: 100vh; width: 100vw;
+  flex-direction: column;
+  padding: 3vh 4vw;
+  gap: 2vh;
+  overflow-y: auto;
+}
+
+.setup-title {
+  font-size: clamp(24px, 4vh, 40px);
+  font-weight: 800;
+  text-align: center;
+  color: #d4a017;
+  letter-spacing: 0.05em;
+}
+
+.setup-section {
+  background: #1a1a1a;
+  border-radius: 12px;
+  padding: 2vh 2vw;
+}
+
+.setup-section h2 {
+  font-size: clamp(14px, 2vh, 20px);
+  font-weight: 700;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 1.5vh;
+}
+
+.setup-row {
+  display: flex;
+  align-items: center;
+  gap: 2vw;
+  margin-bottom: 1vh;
+}
+
+.setup-row label {
+  font-size: clamp(14px, 2vh, 18px);
+  font-weight: 600;
+  color: #ccc;
+  min-width: 12vw;
+}
+
+.setup-row select, .setup-row input[type="number"] {
+  padding: 1vh 1.5vw;
+  border: 1px solid #444;
+  border-radius: 8px;
+  background: #222;
+  color: #e8e8e8;
+  font-size: clamp(14px, 2vh, 18px);
+  font-weight: 600;
+  min-width: 20vw;
+}
+
+.setup-row input[type="number"] {
+  min-width: 8vw;
+  width: 10vw;
+  text-align: center;
+}
+
+/* Rose management */
+.roster-manager {
+  display: flex;
+  gap: 2vw;
+  margin-top: 1vh;
+}
+
+.roster-list {
+  flex: 1;
+  max-width: 30vw;
+}
+
+.roster-list select {
+  width: 100%;
+  height: 20vh;
+  padding: 0.5vh;
+  border: 1px solid #444;
+  border-radius: 8px;
+  background: #222;
+  color: #e8e8e8;
+  font-size: clamp(13px, 1.8vh, 16px);
+}
+
+.roster-actions {
+  display: flex;
+  gap: 0.8vw;
+  margin-top: 1vh;
+  flex-wrap: wrap;
+}
+
+.roster-editor {
+  flex: 2;
+}
+
+.roster-editor textarea {
+  width: 100%;
+  height: 20vh;
+  padding: 1vh 1vw;
+  border: 1px solid #444;
+  border-radius: 8px;
+  background: #222;
+  color: #e8e8e8;
+  font-size: clamp(13px, 1.8vh, 16px);
+  font-family: inherit;
+  resize: none;
+}
+
+.btn-setup {
+  padding: 1vh 2vw;
+  border: none;
+  border-radius: 8px;
+  font-size: clamp(12px, 1.6vh, 16px);
+  font-weight: 700;
+  cursor: pointer;
+  background: #333;
+  color: #ccc;
+}
+
+.btn-setup:active {
+  background: #555;
+}
+
+.btn-setup.primary {
+  background: #22c55e;
+  color: #0d0d0d;
+}
+
+.btn-setup.danger {
+  background: #7f1d1d;
+  color: #f87171;
+}
+
+.btn-start {
+  padding: 2.5vh 4vw;
+  border: none;
+  border-radius: 16px;
+  background: #22c55e;
+  color: #0d0d0d;
+  font-size: clamp(20px, 3.5vh, 36px);
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  margin-top: 1vh;
+  align-self: center;
+}
+
+.btn-start:active {
+  filter: brightness(0.85);
+}
+
+.import-row {
+  display: flex;
+  gap: 1vw;
+  align-items: center;
+  margin-top: 1vh;
+}
+
+.import-row input[type="file"] {
+  color: #999;
+  font-size: clamp(12px, 1.6vh, 15px);
+}
+
+/* ── GOAL OVERLAY ── */
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0,0,0,0.92);
+  flex-direction: column;
+  align-items: center;
+  padding: 3vh 3vw;
+}
+
+.overlay.open {
+  display: flex;
+}
+
+.overlay-title {
+  font-size: clamp(18px, 3vh, 30px);
+  font-weight: 800;
+  color: #d4a017;
+  margin-bottom: 2vh;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.overlay-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(140px, 18vw, 220px), 1fr));
+  gap: 1.2vh 1.2vw;
+  width: 100%;
+  max-height: 72vh;
+  overflow-y: auto;
+  padding: 0 2vw;
+}
+
+.overlay-grid button {
+  padding: 2vh 1vw;
+  border: none;
+  border-radius: 10px;
+  background: #2a2a2a;
+  color: #e8e8e8;
+  font-size: clamp(14px, 2.2vh, 20px);
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  min-height: clamp(50px, 7vh, 80px);
+}
+
+.overlay-grid button:active {
+  background: #d4a017;
+  color: #0d0d0d;
+}
+
+.btn-overlay-cancel {
+  margin-top: 2vh;
+  padding: 1.8vh 6vw;
+  border: 2px solid #666;
+  border-radius: 10px;
+  background: transparent;
+  color: #999;
+  font-size: clamp(16px, 2.5vh, 22px);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-overlay-cancel:active {
+  background: #333;
+  color: #ccc;
+}
+
+/* ── RIGORI PANEL ── */
+.rigori-panel {
+  display: none;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2vh;
+}
+
+.rigori-panel.active {
+  display: flex;
+}
+
+.rigori-panel .center { display: none; }
+
+.rigori-title {
+  font-size: clamp(18px, 3vh, 28px);
+  font-weight: 800;
+  color: #d4a017;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.rigori-score {
+  display: flex;
+  align-items: center;
+  gap: 4vw;
+  margin-bottom: 1vh;
+}
+
+.rigori-score .r-team {
+  text-align: center;
+}
+
+.rigori-score .r-team-name {
+  font-size: clamp(14px, 2.2vh, 22px);
+  font-weight: 700;
+  color: #ccc;
+  text-transform: uppercase;
+  margin-bottom: 0.5vh;
+}
+
+.rigori-score .r-team-count {
+  font-size: clamp(40px, 10vh, 100px);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.rigori-score .r-home .r-team-count { color: #60a5fa; }
+.rigori-score .r-away .r-team-count { color: #f87171; }
+
+.rigori-score .r-vs {
+  font-size: clamp(20px, 4vh, 40px);
+  font-weight: 800;
+  color: #555;
+}
+
+.rigori-sequence {
+  display: flex;
+  gap: 1vw;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 80vw;
+  margin-bottom: 1vh;
+}
+
+.rigori-sequence .r-kick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3vh;
+  min-width: 6vw;
+}
+
+.rigori-sequence .r-kick-num {
+  font-size: clamp(11px, 1.4vh, 14px);
+  color: #666;
+  font-weight: 700;
+}
+
+.rigori-sequence .r-kick-result {
+  width: clamp(28px, 4vw, 40px);
+  height: clamp(28px, 4vw, 40px);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(14px, 2vh, 20px);
+  font-weight: 800;
+}
+
+.r-kick-result.gol-home { background: #1e3a5f; color: #60a5fa; }
+.r-kick-result.err-home { background: #2a2a2a; color: #444; }
+.r-kick-result.gol-away { background: #5f1e1e; color: #f87171; }
+.r-kick-result.err-away { background: #2a2a2a; color: #444; }
+.r-kick-result.pending { background: #1a1a1a; border: 1px dashed #444; color: transparent; }
+
+.rigori-buttons {
+  display: flex;
+  gap: 2vw;
+  align-items: center;
+}
+
+.rigori-buttons .r-label {
+  font-size: clamp(13px, 2vh, 18px);
+  font-weight: 700;
+  color: #999;
+  min-width: 10vw;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.btn-rigore {
+  padding: 2vh 3vw;
+  border: none;
+  border-radius: 10px;
+  font-size: clamp(14px, 2.2vh, 20px);
+  font-weight: 800;
+  cursor: pointer;
+  min-width: clamp(80px, 14vw, 160px);
+  min-height: clamp(50px, 7vh, 80px);
+}
+
+.btn-rigore:active {
+  filter: brightness(0.8);
+}
+
+.btn-rigore.gol { background: #22c55e; color: #0d0d0d; }
+.btn-rigore.errore { background: #ef4444; color: #fff; }
+
+.btn-rigore-undo {
+  padding: 1vh 2vw;
+  border: 2px solid #444;
+  border-radius: 8px;
+  background: transparent;
+  color: #888;
+  font-size: clamp(12px, 1.6vh, 16px);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-rigore-undo:active {
+  background: #333;
+}
+
+.rigori-winner {
+  font-size: clamp(16px, 2.5vh, 24px);
+  font-weight: 800;
+  color: #22c55e;
+  margin-top: 1vh;
+}
+</style>
+</head>
+<body>
+
+<!-- ══ SETUP SCREEN ══ -->
+<div id="screen-setup" class="screen-setup active">
+  <div class="setup-title">SUBTIMER</div>
+
+  <!-- Team selection -->
+  <div class="setup-section">
+    <h2>Squadre</h2>
+    <div class="setup-row">
+      <label>Casa</label>
+      <select id="sel-home"></select>
+    </div>
+    <div class="setup-row">
+      <label>Trasferta</label>
+      <select id="sel-away"></select>
+    </div>
+  </div>
+
+  <!-- Durations -->
+  <div class="setup-section">
+    <h2>Durata tempi (minuti)</h2>
+    <div class="setup-row">
+      <label>Regolamentari</label>
+      <input type="number" id="dur-regular" value="20" min="1" max="60">
+    </div>
+    <div class="setup-row">
+      <label>Supplementari</label>
+      <input type="number" id="dur-extra" value="5" min="1" max="30">
+    </div>
+  </div>
+
+  <!-- Roster management -->
+  <div class="setup-section">
+    <h2>Gestione rose</h2>
+    <div class="roster-manager">
+      <div class="roster-list">
+        <select id="roster-sel" size="8"></select>
+        <div class="roster-actions">
+          <button class="btn-setup" id="btn-new-team">+ Nuova</button>
+          <button class="btn-setup danger" id="btn-del-team">Elimina</button>
+        </div>
+      </div>
+      <div class="roster-editor">
+        <textarea id="roster-edit" placeholder="Seleziona una squadra per modificare la rosa.&#10;Un giocatore per riga."></textarea>
+        <div class="roster-actions">
+          <button class="btn-setup primary" id="btn-save-roster">Salva rosa</button>
+        </div>
+        <div class="import-row">
+          <input type="file" id="import-json" accept=".json">
+          <button class="btn-setup" id="btn-import">Importa JSON</button>
+        </div>
+        <div class="import-row">
+          <button class="btn-setup primary" id="btn-sync-server">Sincronizza rose dal server</button>
+          <span id="sync-status" style="font-size:clamp(12px,1.6vh,15px);color:#999;"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-start" id="btn-start">INIZIA PARTITA</button>
+</div>
+
+<!-- ══ MATCH SCREEN ══ -->
+<div id="screen-match" class="screen-match app">
+
+  <!-- ── TOP BAR ── -->
+  <header class="top-bar">
+    <div id="phase-badges" class="phase-badges">
+      <span class="phase-badge active" data-phase="1T">1T</span>
+      <span class="phase-badge" data-phase="2T">2T</span>
+      <span class="phase-badge" data-phase="1TS">1TS</span>
+      <span class="phase-badge" data-phase="2TS">2TS</span>
+      <span class="phase-badge" data-phase="RIGORI">R</span>
+    </div>
+    <div class="top-right">
+      <button id="btn-next-phase" class="btn-next-phase">FASE SUCC. ▸</button>
+      <div class="settings-wrap">
+        <button id="btn-settings" class="btn-settings">⚙</button>
+        <div id="settings-menu" class="settings-menu">
+          <button id="btn-prev-phase">◂ Fase precedente</button>
+          <button id="btn-new-match">Nuova partita</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── CENTER ── -->
+  <main class="center">
+
+    <!-- Home team -->
+    <div class="team team-home">
+      <div id="name-home" class="team-name">Italia</div>
+      <div id="score-home" class="team-score">0</div>
+      <ul id="scorers-home" class="scorers"></ul>
+    </div>
+
+    <!-- Timer -->
+    <div class="timer-col">
+      <div id="timer-display" class="timer-display">00:00</div>
+      <button id="btn-play-pause" class="btn-play-pause">▶ PLAY</button>
+    </div>
+
+    <!-- Away team -->
+    <div class="team team-away">
+      <div id="name-away" class="team-name">Unione Sovietica</div>
+      <div id="score-away" class="team-score">0</div>
+      <ul id="scorers-away" class="scorers"></ul>
+    </div>
+
+  </main>
+
+  <!-- ── RIGORI PANEL (replaces center when in RIGORI phase) ── -->
+  <div id="rigori-panel" class="rigori-panel">
+    <div class="rigori-title">RIGORI</div>
+    <div class="rigori-score">
+      <div class="r-team r-home">
+        <div id="r-name-home" class="r-team-name"></div>
+        <div id="r-score-home" class="r-team-count">0</div>
+      </div>
+      <div class="r-vs">—</div>
+      <div class="r-team r-away">
+        <div id="r-name-away" class="r-team-name"></div>
+        <div id="r-score-away" class="r-team-count">0</div>
+      </div>
+    </div>
+    <div id="r-sequence" class="rigori-sequence"></div>
+    <div class="rigori-buttons">
+      <button id="r-gol" class="btn-rigore gol">GOL</button>
+      <div id="r-turn-label" class="r-label"></div>
+      <button id="r-err" class="btn-rigore errore">ERRORE</button>
+    </div>
+    <button id="r-undo" class="btn-rigore-undo">↩ ANNULLA ULTIMO</button>
+    <div id="r-winner" class="rigori-winner"></div>
+  </div>
+
+  <!-- ── BOTTOM BAR ── -->
+  <footer class="bottom-bar">
+    <button id="btn-goal-home" class="btn-goal btn-goal-home">+ GOL CASA</button>
+    <button id="btn-undo" class="btn-undo">↩ ANNULLA</button>
+    <button id="btn-redo" class="btn-undo">↪ RIPRISTINA</button>
+    <button id="btn-goal-away" class="btn-goal btn-goal-away">+ GOL TRASFERTA</button>
+  </footer>
+
+</div><!-- /screen-match -->
+
+<!-- ══ GOAL SCORER OVERLAY ══ -->
+<div id="goal-overlay" class="overlay">
+  <div id="overlay-title" class="overlay-title"></div>
+  <div id="overlay-grid" class="overlay-grid"></div>
+  <button id="overlay-cancel" class="btn-overlay-cancel">ANNULLA</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// ROSTER STORAGE (localStorage)
+// ═══════════════════════════════════════════
+var ROSTERS_KEY = 'subbuteo:rosters';
+
+function loadRosters() {
+  try {
+    var data = JSON.parse(localStorage.getItem(ROSTERS_KEY));
+    if (data && Array.isArray(data.squadre)) return data.squadre;
+  } catch (e) {}
+  return [];
+}
+
+function saveRosters(list) {
+  localStorage.setItem(ROSTERS_KEY, JSON.stringify({ squadre: list }));
+}
+
+var rosters = loadRosters();
+
+// Sync rosters from server using rose-index.json
+function syncRostersFromServer(callback) {
+  fetch('rose-index.json?t=' + Date.now()).then(function(r) { return r.json(); }).then(function(files) {
+    var pending = files.length;
+    if (pending === 0 && callback) { callback(0); return; }
+    var added = 0;
+    files.forEach(function(file) {
+      fetch(file + '?t=' + Date.now()).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.nome && Array.isArray(d.rosa)) {
+          var idx = rosters.findIndex(function(t) { return t.nome === d.nome; });
+          if (idx >= 0) {
+            rosters[idx].rosa = d.rosa;
+          } else {
+            rosters.push({ nome: d.nome, rosa: d.rosa });
+            added++;
+          }
+        }
+        pending--;
+        if (pending === 0) { saveRosters(rosters); refreshSetup(); if (callback) callback(added); }
+      }).catch(function() {
+        pending--;
+        if (pending === 0) { saveRosters(rosters); refreshSetup(); if (callback) callback(added); }
+      });
+    });
+  }).catch(function() { if (callback) callback(-1); });
+}
+
+// Auto-import on first run
+if (rosters.length === 0) {
+  syncRostersFromServer();
+}
+
+// ═══════════════════════════════════════════
+// SETUP SCREEN
+// ═══════════════════════════════════════════
+var screenSetup = document.getElementById('screen-setup');
+var screenMatch = document.getElementById('screen-match');
+var selHome = document.getElementById('sel-home');
+var selAway = document.getElementById('sel-away');
+var durRegular = document.getElementById('dur-regular');
+var durExtra = document.getElementById('dur-extra');
+var rosterSel = document.getElementById('roster-sel');
+var rosterEdit = document.getElementById('roster-edit');
+var btnNewTeam = document.getElementById('btn-new-team');
+var btnDelTeam = document.getElementById('btn-del-team');
+var btnSaveRoster = document.getElementById('btn-save-roster');
+var btnImport = document.getElementById('btn-import');
+var importJson = document.getElementById('import-json');
+var btnSyncServer = document.getElementById('btn-sync-server');
+var syncStatus = document.getElementById('sync-status');
+var btnStart = document.getElementById('btn-start');
+
+function refreshSetup() {
+  // populate team selects
+  [selHome, selAway].forEach(function(sel) {
+    var val = sel.value;
+    sel.innerHTML = '';
+    rosters.forEach(function(t, i) {
+      var opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = t.nome;
+      sel.appendChild(opt);
+    });
+    if (val) sel.value = val;
+  });
+  // default: away = second team if available
+  if (rosters.length >= 2 && selHome.value === selAway.value) {
+    selAway.value = '1';
+  }
+
+  // populate roster manager list
+  var prevIdx = rosterSel.value;
+  rosterSel.innerHTML = '';
+  rosters.forEach(function(t, i) {
+    var opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = t.nome;
+    rosterSel.appendChild(opt);
+  });
+  if (prevIdx !== '' && prevIdx < rosters.length) {
+    rosterSel.value = prevIdx;
+  }
+  loadRosterEditor();
+}
+
+function loadRosterEditor() {
+  var idx = parseInt(rosterSel.value);
+  if (isNaN(idx) || !rosters[idx]) {
+    rosterEdit.value = '';
+    return;
+  }
+  rosterEdit.value = rosters[idx].rosa.join('\n');
+}
+
+rosterSel.addEventListener('change', loadRosterEditor);
+
+btnSaveRoster.addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  var idx = parseInt(rosterSel.value);
+  if (isNaN(idx) || !rosters[idx]) return;
+  rosters[idx].rosa = rosterEdit.value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  saveRosters(rosters);
+  refreshSetup();
+});
+
+btnNewTeam.addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  var nome = prompt('Nome della squadra:');
+  if (!nome || !nome.trim()) return;
+  rosters.push({ nome: nome.trim(), rosa: [] });
+  saveRosters(rosters);
+  refreshSetup();
+  rosterSel.value = rosters.length - 1;
+  loadRosterEditor();
+});
+
+btnDelTeam.addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  var idx = parseInt(rosterSel.value);
+  if (isNaN(idx) || !rosters[idx]) return;
+  if (!confirm('Eliminare "' + rosters[idx].nome + '"?')) return;
+  rosters.splice(idx, 1);
+  saveRosters(rosters);
+  refreshSetup();
+});
+
+btnImport.addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  var file = importJson.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function() {
+    try {
+      var data = JSON.parse(reader.result);
+      if (data.nome && Array.isArray(data.rosa)) {
+        // check if team already exists
+        var existing = rosters.findIndex(function(t){return t.nome === data.nome;});
+        if (existing >= 0) {
+          rosters[existing].rosa = data.rosa;
+        } else {
+          rosters.push({ nome: data.nome, rosa: data.rosa });
+        }
+        saveRosters(rosters);
+        refreshSetup();
+        importJson.value = '';
+      }
+    } catch (err) { alert('File JSON non valido'); }
+  };
+  reader.readAsText(file);
+});
+
+btnSyncServer.addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  syncStatus.textContent = 'Sincronizzazione...';
+  syncRostersFromServer(function(added) {
+    if (added < 0) {
+      syncStatus.textContent = 'Errore: server non raggiungibile';
+    } else {
+      syncStatus.textContent = 'Fatto! Rose aggiornate.';
+    }
+    setTimeout(function() { syncStatus.textContent = ''; }, 3000);
+  });
+});
+
+// ═══════════════════════════════════════════
+// SCREEN SWITCHING
+// ═══════════════════════════════════════════
+function showSetup() {
+  if (timer.running) pause();
+  stopTick();
+  clearMatch();
+  screenSetup.classList.add('active');
+  screenMatch.classList.remove('active');
+  refreshSetup();
+}
+
+function showMatch() {
+  screenSetup.classList.remove('active');
+  screenMatch.classList.add('active');
+}
+
+// ═══════════════════════════════════════════
+// START MATCH
+// ═══════════════════════════════════════════
+btnStart.addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  var homeIdx = parseInt(selHome.value);
+  var awayIdx = parseInt(selAway.value);
+  if (isNaN(homeIdx) || isNaN(awayIdx) || !rosters[homeIdx] || !rosters[awayIdx]) {
+    alert('Seleziona entrambe le squadre.');
+    return;
+  }
+  if (homeIdx === awayIdx) {
+    alert('Seleziona due squadre diverse.');
+    return;
+  }
+
+  // Copy rosters into match state
+  squadre.casa.nome = rosters[homeIdx].nome;
+  squadre.casa.rosa = rosters[homeIdx].rosa.slice();
+  squadre.trasferta.nome = rosters[awayIdx].nome;
+  squadre.trasferta.rosa = rosters[awayIdx].rosa.slice();
+
+  // Read durations
+  var regMin = parseInt(durRegular.value) || 20;
+  var extMin = parseInt(durExtra.value) || 5;
+  PHASE_DURATIONS['1T'] = regMin * 60 * 1000;
+  PHASE_DURATIONS['2T'] = regMin * 60 * 1000;
+  PHASE_DURATIONS['1TS'] = extMin * 60 * 1000;
+  PHASE_DURATIONS['2TS'] = extMin * 60 * 1000;
+
+  // Reset match state
+  fase = '1T';
+  timer.elapsedMs = 0;
+  timer.running = false;
+  timer.startedAt = null;
+  timer.durataFaseMs = PHASE_DURATIONS['1T'];
+  beeped = false;
+  marcatori = [];
+  rigori = [];
+  undoStack = [];
+
+  // Update UI
+  nameHome.textContent = squadre.casa.nome;
+  nameAway.textContent = squadre.trasferta.nome;
+  btnPlayPause.textContent = '▶ PLAY';
+  btnPlayPause.classList.remove('playing');
+
+  updatePhaseBadges();
+  updateScoreboard();
+  updateDisplay();
+  showMatch();
+  saveMatch();
+  requestWakeLock();
+});
+
+// ═══════════════════════════════════════════
+// PHASE & TIMER (match screen)
+// ═══════════════════════════════════════════
+var PHASES = ['1T', '2T', '1TS', '2TS', 'RIGORI', 'FINITA'];
+var PHASE_DURATIONS = {
+  '1T':  20 * 60 * 1000,
+  '2T':  20 * 60 * 1000,
+  '1TS':  5 * 60 * 1000,
+  '2TS':  5 * 60 * 1000,
+  'RIGORI': null,
+  'FINITA': null
+};
+
+var squadre = {
+  casa: { nome: '', rosa: [] },
+  trasferta: { nome: '', rosa: [] }
+};
+
+var fase = '1T';
+var timer = {
+  elapsedMs: 0,
+  running: false,
+  startedAt: null,
+  durataFaseMs: PHASE_DURATIONS['1T']
+};
+var beeped = false;
+var marcatori = [];
+var undoStack = [];
+
+var MATCH_KEY = 'subbuteo:matchState';
+
+function saveMatch() {
+  // freeze elapsedMs if running
+  var frozen = timer.elapsedMs;
+  if (timer.running && timer.startedAt !== null) {
+    frozen += Date.now() - timer.startedAt;
+  }
+  var state = {
+    squadre: squadre,
+    fase: fase,
+    timer: {
+      elapsedMs: frozen,
+      durataFaseMs: timer.durataFaseMs
+    },
+    marcatori: marcatori,
+    rigori: rigori,
+    phaseDurations: PHASE_DURATIONS
+  };
+  localStorage.setItem(MATCH_KEY, JSON.stringify(state));
+}
+
+function clearMatch() {
+  localStorage.removeItem(MATCH_KEY);
+}
+
+function loadMatch() {
+  try {
+    var data = JSON.parse(localStorage.getItem(MATCH_KEY));
+    if (data && data.fase && data.fase !== 'FINITA') return data;
+  } catch (e) {}
+  return null;
+}
+
+function restoreMatch(data) {
+  squadre.casa = data.squadre.casa;
+  squadre.trasferta = data.squadre.trasferta;
+  fase = data.fase;
+  timer.elapsedMs = data.timer.elapsedMs;
+  timer.durataFaseMs = data.timer.durataFaseMs;
+  timer.running = false;
+  timer.startedAt = null;
+  if (data.phaseDurations) {
+    PHASE_DURATIONS['1T'] = data.phaseDurations['1T'];
+    PHASE_DURATIONS['2T'] = data.phaseDurations['2T'];
+    PHASE_DURATIONS['1TS'] = data.phaseDurations['1TS'];
+    PHASE_DURATIONS['2TS'] = data.phaseDurations['2TS'];
+  }
+  marcatori = data.marcatori || [];
+  rigori = data.rigori || [];
+  undoStack = [];
+  beeped = timer.durataFaseMs !== null && timer.elapsedMs >= timer.durataFaseMs;
+
+  nameHome.textContent = squadre.casa.nome;
+  nameAway.textContent = squadre.trasferta.nome;
+  btnPlayPause.textContent = '▶ PLAY';
+  btnPlayPause.classList.remove('playing');
+  updatePhaseBadges();
+  updateScoreboard();
+  updateDisplay();
+  showMatch();
+}
+
+// ── Match DOM refs ──
+var timerDisplay = document.getElementById('timer-display');
+var btnPlayPause = document.getElementById('btn-play-pause');
+var btnNextPhase = document.getElementById('btn-next-phase');
+var btnSettings = document.getElementById('btn-settings');
+var settingsMenu = document.getElementById('settings-menu');
+var btnPrevPhase = document.getElementById('btn-prev-phase');
+var btnNewMatch = document.getElementById('btn-new-match');
+var phaseBadges = document.getElementById('phase-badges');
+var scoreHome = document.getElementById('score-home');
+var scoreAway = document.getElementById('score-away');
+var scorersHome = document.getElementById('scorers-home');
+var scorersAway = document.getElementById('scorers-away');
+var btnGoalHome = document.getElementById('btn-goal-home');
+var btnGoalAway = document.getElementById('btn-goal-away');
+var btnUndo = document.getElementById('btn-undo');
+var btnRedo = document.getElementById('btn-redo');
+var nameHome = document.getElementById('name-home');
+var nameAway = document.getElementById('name-away');
+
+// ── Audio (iOS unlock + beep) ──
+var audioCtx = null;
+
+function initAudio() {
+  if (audioCtx) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    gain.gain.value = 0;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.01);
+  } catch (e) {}
+}
+
+document.addEventListener('pointerdown', function unlock() {
+  initAudio();
+  document.removeEventListener('pointerdown', unlock);
+}, { once: true });
+
+function playBeep() {
+  if (!audioCtx) return;
+  try {
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.4);
+  } catch (e) {}
+}
+
+// ── Wake Lock ──
+var wakeLock = null;
+
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+}
+
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') requestWakeLock();
+});
+
+// ── Format ms → MM:SS ──
+function formatTime(ms) {
+  var totalSec = Math.floor(ms / 1000);
+  var m = Math.floor(totalSec / 60);
+  var s = totalSec % 60;
+  return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function getCurrentElapsed() {
+  if (timer.running && timer.startedAt !== null) {
+    return timer.elapsedMs + (Date.now() - timer.startedAt);
+  }
+  return timer.elapsedMs;
+}
+
+var tickInterval = null;
+
+function updateDisplay() {
+  var elapsed = getCurrentElapsed();
+  timerDisplay.textContent = formatTime(elapsed);
+  if (timer.durataFaseMs !== null && elapsed >= timer.durataFaseMs) {
+    timerDisplay.classList.add('expired');
+    if (!beeped) { beeped = true; playBeep(); }
+  } else {
+    timerDisplay.classList.remove('expired');
+  }
+}
+
+function startTick() {
+  if (tickInterval !== null) return;
+  tickInterval = setInterval(updateDisplay, 100);
+}
+
+function stopTick() {
+  if (tickInterval !== null) { clearInterval(tickInterval); tickInterval = null; }
+}
+
+function play() {
+  if (fase === 'RIGORI' || fase === 'FINITA') return;
+  timer.startedAt = Date.now();
+  timer.running = true;
+  btnPlayPause.textContent = '⏸ PAUSA';
+  btnPlayPause.classList.add('playing');
+  startTick();
+  saveMatch();
+}
+
+function pause() {
+  if (!timer.running) return;
+  timer.elapsedMs += Date.now() - timer.startedAt;
+  timer.startedAt = null;
+  timer.running = false;
+  btnPlayPause.textContent = '▶ PLAY';
+  btnPlayPause.classList.remove('playing');
+  stopTick();
+  updateDisplay();
+  saveMatch();
+}
+
+function togglePlayPause() {
+  if (timer.running) pause(); else play();
+}
+
+// ── Phase badges ──
+var rigoriPanel = document.getElementById('rigori-panel');
+var matchCenter = document.querySelector('.center');
+var matchBottom = document.querySelector('.bottom-bar');
+
+function updatePhaseBadges() {
+  var currentIdx = PHASES.indexOf(fase);
+  var badges = phaseBadges.querySelectorAll('.phase-badge');
+  badges.forEach(function(badge) {
+    var bp = badge.dataset.phase;
+    var bi = PHASES.indexOf(bp);
+    badge.classList.remove('active', 'past');
+    if (bp === fase || (fase === 'FINITA' && bp === 'RIGORI')) {
+      badge.classList.add('active');
+    } else if (bi < currentIdx) {
+      badge.classList.add('past');
+    }
+  });
+  var noTimer = fase === 'RIGORI' || fase === 'FINITA';
+  btnPlayPause.classList.toggle('hidden', noTimer);
+  if (noTimer) {
+    timerDisplay.textContent = '--:--';
+    timerDisplay.classList.remove('expired');
+  }
+  // show/hide rigori panel vs normal center+bottom
+  var isRigori = fase === 'RIGORI';
+  rigoriPanel.classList.toggle('active', isRigori);
+  matchCenter.style.display = isRigori ? 'none' : '';
+  matchBottom.style.display = isRigori ? 'none' : '';
+  if (isRigori) updateRigoriUI();
+}
+
+// ── Rigori ──
+var rigori = []; // { squadra: 'casa'|'trasferta', giocatore: string, esito: 'gol'|'errore' }
+var rScoreHome = document.getElementById('r-score-home');
+var rScoreAway = document.getElementById('r-score-away');
+var rNameHome = document.getElementById('r-name-home');
+var rNameAway = document.getElementById('r-name-away');
+var rSequence = document.getElementById('r-sequence');
+var rTurnLabel = document.getElementById('r-turn-label');
+var rGol = document.getElementById('r-gol');
+var rErr = document.getElementById('r-err');
+var rUndo = document.getElementById('r-undo');
+var rWinner = document.getElementById('r-winner');
+
+function getRigoriScore() {
+  var c = 0, t = 0;
+  for (var i = 0; i < rigori.length; i++) {
+    if (rigori[i].esito === 'gol') {
+      if (rigori[i].squadra === 'casa') c++; else t++;
+    }
+  }
+  return { casa: c, trasferta: t };
+}
+
+function getRigoriTurn() {
+  // alternating: home first in each round
+  // round = floor(rigori.length / 2), within round: 0=casa, 1=trasferta
+  return rigori.length % 2 === 0 ? 'casa' : 'trasferta';
+}
+
+function getRigoriWinner() {
+  var sc = getRigoriScore();
+  var total = rigori.length;
+  var roundsDone = Math.floor(total / 2);
+  // both teams must have taken same number of kicks to evaluate
+  if (total % 2 !== 0) return null;
+  if (roundsDone < 1) return null;
+
+  // In first 5 rounds: check if one team can't catch up
+  if (roundsDone <= 5) {
+    var remaining = 5 - roundsDone;
+    // home can't catch up
+    if (sc.trasferta > sc.casa + remaining) return 'trasferta';
+    // away can't catch up
+    if (sc.casa > sc.trasferta + remaining) return 'casa';
+    // after 5 rounds, if not tied, we have a winner
+    if (roundsDone === 5 && sc.casa !== sc.trasferta) {
+      return sc.casa > sc.trasferta ? 'casa' : 'trasferta';
+    }
+  }
+
+  // Sudden death (after round 5): if scores differ after equal kicks
+  if (roundsDone > 5 && sc.casa !== sc.trasferta) {
+    return sc.casa > sc.trasferta ? 'casa' : 'trasferta';
+  }
+
+  return null;
+}
+
+function updateRigoriUI() {
+  rNameHome.textContent = squadre.casa.nome;
+  rNameAway.textContent = squadre.trasferta.nome;
+  var sc = getRigoriScore();
+  rScoreHome.textContent = sc.casa;
+  rScoreAway.textContent = sc.trasferta;
+
+  // sequence display
+  rSequence.innerHTML = '';
+  var rounds = Math.ceil(rigori.length / 2);
+  var maxRounds = Math.max(rounds + 1, 5);
+  for (var r = 0; r < maxRounds; r++) {
+    var homeIdx = r * 2;
+    var awayIdx = r * 2 + 1;
+
+    var kickDiv = document.createElement('div');
+    kickDiv.className = 'r-kick';
+
+    var numEl = document.createElement('div');
+    numEl.className = 'r-kick-num';
+    numEl.textContent = (r + 1);
+    kickDiv.appendChild(numEl);
+
+    // home result
+    var hEl = document.createElement('div');
+    hEl.className = 'r-kick-result';
+    if (homeIdx < rigori.length) {
+      var hk = rigori[homeIdx];
+      hEl.classList.add(hk.esito === 'gol' ? 'gol-home' : 'err-home');
+      hEl.textContent = hk.esito === 'gol' ? 'O' : 'X';
+    } else {
+      hEl.classList.add('pending');
+    }
+    kickDiv.appendChild(hEl);
+
+    // away result
+    var aEl = document.createElement('div');
+    aEl.className = 'r-kick-result';
+    if (awayIdx < rigori.length) {
+      var ak = rigori[awayIdx];
+      aEl.classList.add(ak.esito === 'gol' ? 'gol-away' : 'err-away');
+      aEl.textContent = ak.esito === 'gol' ? 'O' : 'X';
+    } else {
+      aEl.classList.add('pending');
+    }
+    kickDiv.appendChild(aEl);
+
+    rSequence.appendChild(kickDiv);
+  }
+
+  // turn label & winner
+  var winner = getRigoriWinner();
+  if (winner) {
+    var winName = winner === 'casa' ? squadre.casa.nome : squadre.trasferta.nome;
+    rWinner.textContent = 'VINCE ' + winName + '!';
+    rTurnLabel.textContent = '';
+    rGol.disabled = true;
+    rErr.disabled = true;
+  } else {
+    rWinner.textContent = '';
+    var turn = getRigoriTurn();
+    rTurnLabel.textContent = turn === 'casa' ? squadre.casa.nome : squadre.trasferta.nome;
+    rGol.disabled = false;
+    rErr.disabled = false;
+  }
+}
+
+function addRigore(esito) {
+  if (getRigoriWinner()) return;
+  var turn = getRigoriTurn();
+  rigori.push({ squadra: turn, giocatore: '', esito: esito });
+  updateRigoriUI();
+  saveMatch();
+}
+
+function undoRigore() {
+  if (rigori.length === 0) return;
+  rigori.pop();
+  updateRigoriUI();
+  saveMatch();
+}
+
+rGol.addEventListener('pointerdown', function(e) { e.preventDefault(); addRigore('gol'); });
+rErr.addEventListener('pointerdown', function(e) { e.preventDefault(); addRigore('errore'); });
+rUndo.addEventListener('pointerdown', function(e) { e.preventDefault(); undoRigore(); });
+
+// ── Score ──
+function getScore() {
+  var casa = 0, trasferta = 0;
+  for (var i = 0; i < marcatori.length; i++) {
+    if (marcatori[i].squadra === 'casa') casa++; else trasferta++;
+  }
+  return { casa: casa, trasferta: trasferta };
+}
+
+function updateScoreboard() {
+  var score = getScore();
+  scoreHome.textContent = score.casa;
+  scoreAway.textContent = score.trasferta;
+  scorersHome.innerHTML = '';
+  scorersAway.innerHTML = '';
+  for (var i = 0; i < marcatori.length; i++) {
+    var m = marcatori[i];
+    var li = document.createElement('li');
+    li.textContent = (m.giocatore || 'Gol') + ' — ' + m.minutoGioco + "'";
+    if (m.squadra === 'casa') scorersHome.appendChild(li);
+    else scorersAway.appendChild(li);
+  }
+}
+
+function getCurrentMinute() {
+  var elapsed = getCurrentElapsed();
+  return Math.ceil(elapsed / 60000) || 1;
+}
+
+// ── Goal overlay ──
+var goalOverlay = document.getElementById('goal-overlay');
+var overlayTitle = document.getElementById('overlay-title');
+var overlayGrid = document.getElementById('overlay-grid');
+var overlayCancel = document.getElementById('overlay-cancel');
+var pendingGoal = null; // { squadra, minutoGioco, fase }
+
+function openGoalOverlay(squadra) {
+  if (fase === 'FINITA') return;
+  var minuto = getCurrentMinute();
+  var rosa = squadra === 'casa' ? squadre.casa.rosa : squadre.trasferta.rosa;
+  var nome = squadra === 'casa' ? squadre.casa.nome : squadre.trasferta.nome;
+
+  pendingGoal = { squadra: squadra, minutoGioco: minuto, fase: fase };
+  overlayTitle.textContent = 'GOL ' + nome + ' — ' + minuto + "'";
+  overlayGrid.innerHTML = '';
+
+  rosa.forEach(function(giocatore) {
+    var btn = document.createElement('button');
+    btn.textContent = giocatore;
+    btn.addEventListener('pointerdown', function(e) {
+      e.preventDefault();
+      marcatori.push({
+        squadra: pendingGoal.squadra,
+        giocatore: giocatore,
+        minutoGioco: pendingGoal.minutoGioco,
+        fase: pendingGoal.fase
+      });
+      undoStack = [];
+      pendingGoal = null;
+      goalOverlay.classList.remove('open');
+      updateScoreboard();
+      saveMatch();
+    });
+    overlayGrid.appendChild(btn);
+  });
+
+  goalOverlay.classList.add('open');
+}
+
+function closeGoalOverlay() {
+  pendingGoal = null;
+  goalOverlay.classList.remove('open');
+}
+
+overlayCancel.addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  closeGoalOverlay();
+});
+
+function undoLastGoal() {
+  if (marcatori.length === 0) return;
+  undoStack.push(marcatori.pop());
+  updateScoreboard();
+  saveMatch();
+}
+
+function redoLastGoal() {
+  if (undoStack.length === 0) return;
+  marcatori.push(undoStack.pop());
+  updateScoreboard();
+  saveMatch();
+}
+
+// ── Phase transitions ──
+function goToPhase(newPhase) {
+  if (timer.running) pause();
+  fase = newPhase;
+  timer.elapsedMs = 0;
+  timer.startedAt = null;
+  timer.running = false;
+  timer.durataFaseMs = PHASE_DURATIONS[newPhase] || null;
+  beeped = false;
+  if (newPhase === 'RIGORI') rigori = [];
+  btnPlayPause.textContent = '▶ PLAY';
+  btnPlayPause.classList.remove('playing');
+  updatePhaseBadges();
+  updateDisplay();
+  saveMatch();
+}
+
+function nextPhase() {
+  var idx = PHASES.indexOf(fase);
+  if (idx >= PHASES.length - 1) return;
+  var score = getScore();
+  var tied = score.casa === score.trasferta;
+  if (fase === '2T' && !tied) { goToPhase('FINITA'); return; }
+  if (fase === '2TS' && !tied) { goToPhase('FINITA'); return; }
+  goToPhase(PHASES[idx + 1]);
+}
+
+function prevPhase() {
+  var idx = PHASES.indexOf(fase);
+  if (idx <= 0) return;
+  goToPhase(PHASES[idx - 1]);
+}
+
+// ── Settings menu ──
+function toggleSettings(e) {
+  e.stopPropagation();
+  settingsMenu.classList.toggle('open');
+}
+
+function closeSettings() {
+  settingsMenu.classList.remove('open');
+}
+
+// ═══════════════════════════════════════════
+// EVENT BINDINGS
+// ═══════════════════════════════════════════
+btnPlayPause.addEventListener('pointerdown', function(e) { e.preventDefault(); togglePlayPause(); });
+btnNextPhase.addEventListener('pointerdown', function(e) { e.preventDefault(); nextPhase(); });
+btnSettings.addEventListener('pointerdown', function(e) { e.preventDefault(); toggleSettings(e); });
+btnPrevPhase.addEventListener('pointerdown', function(e) { e.preventDefault(); prevPhase(); closeSettings(); });
+btnNewMatch.addEventListener('pointerdown', function(e) { e.preventDefault(); closeSettings(); showSetup(); });
+btnGoalHome.addEventListener('pointerdown', function(e) { e.preventDefault(); openGoalOverlay('casa'); });
+btnGoalAway.addEventListener('pointerdown', function(e) { e.preventDefault(); openGoalOverlay('trasferta'); });
+btnUndo.addEventListener('pointerdown', function(e) { e.preventDefault(); undoLastGoal(); });
+btnRedo.addEventListener('pointerdown', function(e) { e.preventDefault(); redoLastGoal(); });
+
+document.addEventListener('pointerdown', function(e) {
+  if (!e.target.closest('.settings-wrap')) closeSettings();
+});
+
+// ═══════════════════════════════════════════
+// INIT — recover or show setup
+// ═══════════════════════════════════════════
+var saved = loadMatch();
+if (saved) {
+  restoreMatch(saved);
+  requestWakeLock();
+} else {
+  refreshSetup();
+}
+
+// ═══════════════════════════════════════════
+// SERVICE WORKER
+// ═══════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  // unregister old SW, then register new one
+  navigator.serviceWorker.getRegistrations().then(function(regs) {
+    return Promise.all(regs.map(function(r) { return r.unregister(); }));
+  }).then(function() {
+    return caches.keys();
+  }).then(function(keys) {
+    return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+  }).then(function() {
+    navigator.serviceWorker.register('/sw2.js');
+  });
+}
+</script>
+
+</body>
+</html>
