@@ -1308,6 +1308,7 @@ function play() {
   if (fase === 'RIGORI' || fase === 'FINITA') return;
   timer.startedAt = Date.now();
   timer.running = true;
+  playBeep();
   btnPlayPause.textContent = '⏸ PAUSA';
   btnPlayPause.classList.add('playing');
   startTick();
