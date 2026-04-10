@@ -1240,26 +1240,32 @@ function initAudio() {
   } catch (e) {}
 }
 
-document.addEventListener('pointerdown', function unlock() {
+document.addEventListener('pointerdown', function() {
   initAudio();
-  document.removeEventListener('pointerdown', unlock);
-}, { once: true });
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+});
 
 function playBeep() {
   if (!audioCtx) { initAudio(); }
   if (!audioCtx) return;
   try {
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    var osc = audioCtx.createOscillator();
-    var gain = audioCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.4);
+    var doBeep = function() {
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.4);
+    };
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume().then(doBeep);
+    } else {
+      doBeep();
+    }
   } catch (e) {}
 }
 
