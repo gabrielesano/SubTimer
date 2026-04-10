@@ -1564,8 +1564,7 @@ function openGoalOverlay(squadra) {
   rosa.forEach(function(giocatore) {
     var btn = document.createElement('button');
     btn.textContent = giocatore;
-    btn.addEventListener('pointerdown', function(e) {
-      e.preventDefault();
+    btn.addEventListener('click', function(e) {
       marcatori.push({
         squadra: pendingGoal.squadra,
         giocatore: giocatore,
