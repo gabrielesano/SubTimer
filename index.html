@@ -1223,7 +1223,7 @@ var btnRedo = document.getElementById('btn-redo');
 var nameHome = document.getElementById('name-home');
 var nameAway = document.getElementById('name-away');
 
-// ── Audio (iOS unlock + beep) ──
+// ── Audio (iOS unlock + sistema procedurale) ──
 var audioCtx = null;
 
 function initAudio() {
@@ -1245,27 +1245,177 @@ document.addEventListener('pointerdown', function() {
   if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 });
 
-function playBeep() {
+// Buffer di rumore bianco di durata arbitraria
+function makeNoiseBuffer(duration) {
+  var bufSize = Math.floor(audioCtx.sampleRate * duration);
+  var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  var data = buf.getChannelData(0);
+  for (var i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+  return buf;
+}
+
+// Singola soffiata di fischietto: rumore bianco filtrato bandpass stretto +
+// sine tonale con vibrato. Suona come un fischio d'arbitro reale.
+function whistleBlow(startTime, duration, freq, vol) {
+  var t = startTime;
+  var noise = audioCtx.createBufferSource();
+  noise.buffer = makeNoiseBuffer(duration + 0.05);
+
+  var bp1 = audioCtx.createBiquadFilter();
+  bp1.type = 'bandpass';
+  bp1.frequency.value = freq;
+  bp1.Q.value = 30;
+
+  var bp2 = audioCtx.createBiquadFilter();
+  bp2.type = 'bandpass';
+  bp2.frequency.value = freq;
+  bp2.Q.value = 20;
+
+  var noiseGain = audioCtx.createGain();
+  noiseGain.gain.setValueAtTime(0.0001, t);
+  noiseGain.gain.exponentialRampToValueAtTime(vol * 0.35, t + 0.015);
+  noiseGain.gain.setValueAtTime(vol * 0.35, t + Math.max(0.02, duration - 0.04));
+  noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+
+  noise.connect(bp1);
+  bp1.connect(bp2);
+  bp2.connect(noiseGain);
+  noiseGain.connect(audioCtx.destination);
+
+  // Componente tonale: sine alla stessa frequenza con vibrato veloce
+  var osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.value = freq;
+
+  var lfo = audioCtx.createOscillator();
+  lfo.frequency.value = 7;
+  var lfoGain = audioCtx.createGain();
+  lfoGain.gain.value = 18;
+  lfo.connect(lfoGain);
+  lfoGain.connect(osc.frequency);
+
+  var oscGain = audioCtx.createGain();
+  oscGain.gain.setValueAtTime(0.0001, t);
+  oscGain.gain.exponentialRampToValueAtTime(vol * 0.55, t + 0.015);
+  oscGain.gain.setValueAtTime(vol * 0.55, t + Math.max(0.02, duration - 0.04));
+  oscGain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+
+  osc.connect(oscGain);
+  oscGain.connect(audioCtx.destination);
+
+  noise.start(t);
+  noise.stop(t + duration + 0.05);
+  osc.start(t);
+  osc.stop(t + duration);
+  lfo.start(t);
+  lfo.stop(t + duration);
+}
+
+// kind: 1 (avvio tempo, singolo), 2 (fine primo tempo, doppio),
+//       3 (fine partita, triplo), 'short' (rigore)
+function playWhistle(kind) {
   if (!audioCtx) { initAudio(); }
   if (!audioCtx) return;
-  try {
-    var doBeep = function() {
-      var osc = audioCtx.createOscillator();
-      var gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.4);
-    };
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume().then(doBeep);
-    } else {
-      doBeep();
+  var go = function() {
+    var now = audioCtx.currentTime + 0.02;
+    var freq = 2700;
+    var vol = 0.5;
+    if (kind === 'short') {
+      whistleBlow(now, 0.18, 3100, vol);
+      return;
     }
+    var n = kind || 1;
+    if (n === 1) {
+      whistleBlow(now, 0.75, freq, vol);
+    } else if (n === 2) {
+      whistleBlow(now, 0.35, freq, vol);
+      whistleBlow(now + 0.5, 0.8, freq, vol);
+    } else {
+      whistleBlow(now, 0.3, freq, vol);
+      whistleBlow(now + 0.42, 0.3, freq, vol);
+      whistleBlow(now + 0.84, 0.95, freq, vol);
+    }
+  };
+  try {
+    if (audioCtx.state === 'suspended') audioCtx.resume().then(go);
+    else go();
+  } catch (e) {}
+}
+
+// Esultanza della folla: rumore rosa filtrato nella banda vocale +
+// tremolo per simulare il vocio. Parametri randomizzati per evitare
+// ripetitività tra un gol e l'altro.
+function playCrowdCheer() {
+  if (!audioCtx) { initAudio(); }
+  if (!audioCtx) return;
+  var go = function() {
+    var now = audioCtx.currentTime + 0.02;
+    var duration = 2.0 + Math.random() * 1.0;
+
+    // Rumore rosa (approssimazione Voss-McCartney)
+    var bufSize = Math.floor(audioCtx.sampleRate * duration);
+    var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    var data = buf.getChannelData(0);
+    var b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+    for (var i = 0; i < bufSize; i++) {
+      var white = Math.random() * 2 - 1;
+      b0 = 0.99886*b0 + white*0.0555179;
+      b1 = 0.99332*b1 + white*0.0750759;
+      b2 = 0.96900*b2 + white*0.1538520;
+      b3 = 0.86650*b3 + white*0.3104856;
+      b4 = 0.55000*b4 + white*0.5329522;
+      b5 = -0.7616*b5 - white*0.0168980;
+      data[i] = (b0+b1+b2+b3+b4+b5+b6+white*0.5362)*0.11;
+      b6 = white*0.115926;
+    }
+
+    var src = audioCtx.createBufferSource();
+    src.buffer = buf;
+
+    // Highpass per togliere rumbling sotto la voce
+    var hp = audioCtx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 250;
+
+    // Bandpass larga centrata nella regione vocale (con piccolo random)
+    var bp = audioCtx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 850 + Math.random() * 400;
+    bp.Q.value = 0.7;
+
+    // Tremolo lento: LFO che modula il gain intorno a 1 → simula il vocio
+    var tremoloGain = audioCtx.createGain();
+    tremoloGain.gain.value = 1;
+    var lfo = audioCtx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 5 + Math.random() * 4;
+    var lfoDepth = audioCtx.createGain();
+    lfoDepth.gain.value = 0.12;
+    lfo.connect(lfoDepth);
+    lfoDepth.connect(tremoloGain.gain);
+
+    // Inviluppo: attack rapido (boato), plateau, decay lento
+    var mainGain = audioCtx.createGain();
+    var peak = 0.45 + Math.random() * 0.1;
+    mainGain.gain.setValueAtTime(0.001, now);
+    mainGain.gain.exponentialRampToValueAtTime(peak, now + 0.12);
+    mainGain.gain.setValueAtTime(peak, now + duration * 0.4);
+    mainGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    src.connect(hp);
+    hp.connect(bp);
+    bp.connect(tremoloGain);
+    tremoloGain.connect(mainGain);
+    mainGain.connect(audioCtx.destination);
+
+    src.start(now);
+    src.stop(now + duration);
+    lfo.start(now);
+    lfo.stop(now + duration);
+  };
+  try {
+    if (audioCtx.state === 'suspended') audioCtx.resume().then(go);
+    else go();
   } catch (e) {}
 }
 
@@ -1303,7 +1453,7 @@ function updateDisplay() {
   timerDisplay.textContent = formatTime(elapsed);
   if (timer.durataFaseMs !== null && elapsed >= timer.durataFaseMs) {
     timerDisplay.classList.add('expired');
-    if (!beeped) { beeped = true; playBeep(); }
+    if (!beeped) { beeped = true; playWhistle((fase === '2T' || fase === '2TS') ? 3 : 2); }
   } else {
     timerDisplay.classList.remove('expired');
   }
@@ -1322,7 +1472,7 @@ function play() {
   if (fase === 'RIGORI' || fase === 'FINITA') return;
   timer.startedAt = Date.now();
   timer.running = true;
-  playBeep();
+  playWhistle(1);
   btnPlayPause.textContent = '⏸ PAUSA';
   btnPlayPause.classList.add('playing');
   startTick();
@@ -1506,6 +1656,8 @@ function addRigore(esito) {
   if (getRigoriWinner()) return;
   var turn = getRigoriTurn();
   rigori.push({ squadra: turn, giocatore: '', esito: esito });
+  playWhistle('short');
+  if (esito === 'gol') playCrowdCheer();
   updateRigoriUI();
   saveMatch();
 }
@@ -1581,6 +1733,7 @@ function openGoalOverlay(squadra) {
       pendingGoal = null;
       goalOverlay.classList.remove('open');
       updateScoreboard();
+      playCrowdCheer();
       saveMatch();
     });
     overlayGrid.appendChild(btn);
