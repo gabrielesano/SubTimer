@@ -237,26 +237,51 @@ nome e nel frattempo il timer avanza. Quindi:
 - Layout in CSS Grid o Flexbox, dimensioni in `vh`/`vw` per adattarsi a
   schermi diversi senza scroll.
 
-## Gestione audio (sblocco iOS)
+## Gestione audio
+
+### Sblocco iOS
 
 Safari iPadOS non permette di riprodurre audio senza una prima interazione
 utente nella pagina. Va gestito così:
 
 1. Al primo evento `pointerdown` sulla pagina (qualsiasi), inizializza un
    `AudioContext`.
-2. Opzionalmente, fai suonare un beep a volume zero per "sbloccare"
-   effettivamente il canale.
-3. Rimuovi il listener dopo la prima esecuzione (one-shot).
-4. Conserva il riferimento all'`AudioContext` per i beep successivi.
+2. Fai suonare un oscillatore a volume zero per "sbloccare" effettivamente
+   il canale.
+3. Il listener resta attivo su tutta la pagina: in caso di `state === 'suspended'`
+   lo si risveglia con `audioCtx.resume()`.
+4. Conserva il riferimento all'`AudioContext` per i suoni successivi.
 
-Il beep è generato proceduralmente con un `OscillatorNode` (onda sinusoidale
-a 880 Hz per 400 ms, con inviluppo per evitare click) — niente file audio
-esterni, niente asset da caricare. Il beep viene riprodotto in due occasioni:
-- **Alla partenza del timer** (ogni volta che si preme Play).
-- **Alla scadenza della fase** (una volta sola, quando `elapsedMs` supera
-  `durataFaseMs`).
+**Limite noto**: se l'iPhone/iPad è in modalità silenziosa, Web Audio API
+non produce suono. È un limite di sistema, non aggirabile.
 
-Su desktop (Firefox/Chrome) questo meccanismo è ridondante ma innocuo.
+### Sistema audio procedurale
+
+Tutti i suoni sono **generati proceduralmente** via Web Audio API. Nessun
+file audio esterno, nessun asset da scaricare, niente da cachare.
+
+**Fischio arbitro** (`playWhistle(kind)` + helper `whistleBlow()`):
+rumore bianco → 2 bandpass stretti in cascata (Q=30, Q=20) a 2700 Hz +
+onda sinusoidale tonale con vibrato a 7 Hz. Varianti:
+- `1` (singolo, ~0.75s) → avvio tempo su Play
+- `2` (doppio) → scadenza 1T o 1TS (fine primo tempo / supplementare)
+- `3` (triplo) → scadenza 2T o 2TS (fine regolamentare / fine partita)
+- `'short'` (~0.18s, 3100 Hz) → per ogni rigore tirato
+
+**Esultanza folla** (`playCrowdCheer()`): rumore rosa (approssimazione
+Voss-McCartney) → highpass a 250 Hz → bandpass vocale (850–1250 Hz
+randomizzato) → tremolo LFO 5–9 Hz → inviluppo con attack rapido, plateau,
+decay lento. Tutti i parametri hanno un grado di randomizzazione per
+evitare ripetitività tra un gol e l'altro. Suona al:
+- Gol registrato (selezione giocatore nell'overlay)
+- Rigore con esito `gol`
+
+**Vincolo**: mantenere l'approccio procedurale. Non aggiungere file audio
+esterni. Se un suono non convince, tocca i parametri (frequenze dei
+filtri, durata, Q, LFO) — non sostituire con sample.
+
+Su desktop (Firefox/Chrome) il meccanismo è ridondante rispetto al problema
+iOS ma funziona identicamente.
 
 ## Wake Lock
 
