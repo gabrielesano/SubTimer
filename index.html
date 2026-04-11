@@ -547,6 +547,91 @@ html, body {
   color: #ccc;
 }
 
+/* ── CARD BUTTON (bottom bar) ── */
+.btn-card {
+  padding: 1.5vh 2.5vw;
+  border: 2px solid #4a4018;
+  border-radius: 10px;
+  background: #3a2f15;
+  color: #eab308;
+  font-size: clamp(12px, 1.8vh, 16px);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+
+.btn-card:active {
+  background: #4a3f25;
+}
+
+/* ── CARD OVERLAY TOGGLES ── */
+.card-toggles {
+  display: flex;
+  gap: 3vw;
+  margin-bottom: 2vh;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.card-toggle-group {
+  display: flex;
+  gap: 0.8vw;
+}
+
+.card-toggle-btn {
+  padding: 1.2vh 2.5vw;
+  border: 2px solid #444;
+  border-radius: 10px;
+  background: #1a1a1a;
+  color: #888;
+  font-size: clamp(13px, 1.9vh, 18px);
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  min-width: clamp(90px, 12vw, 140px);
+}
+
+.card-toggle-btn.active {
+  background: #2a2a2a;
+  color: #e8e8e8;
+  border-color: #d4a017;
+}
+
+.card-toggle-btn[data-type="giallo"].active {
+  background: #3a2f15;
+  color: #eab308;
+  border-color: #eab308;
+}
+
+.card-toggle-btn[data-type="rosso"].active {
+  background: #3a1515;
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+/* ── TABELLINO MARKERS ── */
+.scorers .card-mark {
+  display: inline-block;
+  width: 0.65em;
+  height: 0.95em;
+  vertical-align: -0.12em;
+  border-radius: 1px;
+  margin-right: 0.35em;
+}
+
+.scorers .card-mark.yellow {
+  background: #eab308;
+}
+
+.scorers .card-mark.red {
+  background: #ef4444;
+}
+
+.scorers li.scorer-card {
+  color: #aaa;
+}
+
 /* ── RIGORI PANEL ── */
 .rigori-panel {
   display: none;
@@ -842,6 +927,7 @@ html, body {
   <footer class="bottom-bar">
     <button id="btn-goal-home" class="btn-goal btn-goal-home">+ GOL CASA</button>
     <button id="btn-undo" class="btn-undo">↩ ANNULLA</button>
+    <button id="btn-card" class="btn-card">CART.</button>
     <button id="btn-redo" class="btn-undo">↪ RIPRISTINA</button>
     <button id="btn-goal-away" class="btn-goal btn-goal-away">+ GOL TRASFERTA</button>
   </footer>
@@ -853,6 +939,23 @@ html, body {
   <div id="overlay-title" class="overlay-title"></div>
   <div id="overlay-grid" class="overlay-grid"></div>
   <button id="overlay-cancel" class="btn-overlay-cancel">ANNULLA</button>
+</div>
+
+<!-- ══ CARD OVERLAY ══ -->
+<div id="card-overlay" class="overlay">
+  <div id="card-overlay-title" class="overlay-title"></div>
+  <div class="card-toggles">
+    <div class="card-toggle-group" id="card-team-group">
+      <button type="button" data-team="casa" class="card-toggle-btn active">CASA</button>
+      <button type="button" data-team="trasferta" class="card-toggle-btn">TRASFERTA</button>
+    </div>
+    <div class="card-toggle-group" id="card-type-group">
+      <button type="button" data-type="giallo" class="card-toggle-btn active">GIALLO</button>
+      <button type="button" data-type="rosso" class="card-toggle-btn">ROSSO</button>
+    </div>
+  </div>
+  <div id="card-overlay-grid" class="overlay-grid"></div>
+  <button id="card-overlay-cancel" class="btn-overlay-cancel">ANNULLA</button>
 </div>
 
 <script>
@@ -1094,6 +1197,8 @@ btnStart.addEventListener('pointerdown', function(e) {
   timer.durataFaseMs = PHASE_DURATIONS['1T'];
   beeped = false;
   marcatori = [];
+  cartellini = [];
+  actionOrder = [];
   rigori = [];
   undoStack = [];
 
@@ -1138,7 +1243,9 @@ var timer = {
 };
 var beeped = false;
 var marcatori = [];
-var undoStack = [];
+var cartellini = []; // { squadra, giocatore, tipo: 'giallo'|'rosso', minutoGioco, fase }
+var actionOrder = []; // push order: 'goal'|'card' — serve per undo unificato
+var undoStack = []; // redo stack: [{ type: 'goal'|'card', event: {...} }]
 
 var MATCH_KEY = 'subbuteo:matchState';
 
@@ -1156,6 +1263,8 @@ function saveMatch() {
       durataFaseMs: timer.durataFaseMs
     },
     marcatori: marcatori,
+    cartellini: cartellini,
+    actionOrder: actionOrder,
     rigori: rigori,
     phaseDurations: PHASE_DURATIONS
   };
@@ -1189,7 +1298,17 @@ function restoreMatch(data) {
     PHASE_DURATIONS['2TS'] = data.phaseDurations['2TS'];
   }
   marcatori = data.marcatori || [];
+  cartellini = data.cartellini || [];
   rigori = data.rigori || [];
+  // Backfill actionOrder se il salvataggio è precedente all'introduzione dei
+  // cartellini: assume tutti i gol prima, poi i cartellini (ordine indicativo).
+  if (Array.isArray(data.actionOrder)) {
+    actionOrder = data.actionOrder.slice();
+  } else {
+    actionOrder = [];
+    for (var _i = 0; _i < marcatori.length; _i++) actionOrder.push('goal');
+    for (var _j = 0; _j < cartellini.length; _j++) actionOrder.push('card');
+  }
   undoStack = [];
   beeped = timer.durataFaseMs !== null && timer.elapsedMs >= timer.durataFaseMs;
 
@@ -1220,6 +1339,7 @@ var btnGoalHome = document.getElementById('btn-goal-home');
 var btnGoalAway = document.getElementById('btn-goal-away');
 var btnUndo = document.getElementById('btn-undo');
 var btnRedo = document.getElementById('btn-redo');
+var btnCard = document.getElementById('btn-card');
 var nameHome = document.getElementById('name-home');
 var nameAway = document.getElementById('name-away');
 
@@ -1688,11 +1808,36 @@ function updateScoreboard() {
   scoreAway.textContent = score.trasferta;
   scorersHome.innerHTML = '';
   scorersAway.innerHTML = '';
+
+  // Unisci gol e cartellini e ordina cronologicamente per fase + minuto
+  var events = [];
   for (var i = 0; i < marcatori.length; i++) {
-    var m = marcatori[i];
+    events.push({ kind: 'goal', data: marcatori[i] });
+  }
+  for (var j = 0; j < cartellini.length; j++) {
+    events.push({ kind: cartellini[j].tipo, data: cartellini[j] });
+  }
+  events.sort(function(a, b) {
+    var pa = PHASES.indexOf(a.data.fase);
+    var pb = PHASES.indexOf(b.data.fase);
+    if (pa !== pb) return pa - pb;
+    return a.data.minutoGioco - b.data.minutoGioco;
+  });
+
+  for (var k = 0; k < events.length; k++) {
+    var ev = events[k];
     var li = document.createElement('li');
-    li.textContent = (m.giocatore || 'Gol') + ' — ' + m.minutoGioco + "'";
-    if (m.squadra === 'casa') scorersHome.appendChild(li);
+    if (ev.kind === 'goal') {
+      li.textContent = (ev.data.giocatore || 'Gol') + ' — ' + ev.data.minutoGioco + "'";
+      li.className = 'scorer-goal';
+    } else {
+      var mark = document.createElement('span');
+      mark.className = 'card-mark ' + (ev.kind === 'giallo' ? 'yellow' : 'red');
+      li.appendChild(mark);
+      li.appendChild(document.createTextNode(ev.data.giocatore + ' — ' + ev.data.minutoGioco + "'"));
+      li.className = 'scorer-card';
+    }
+    if (ev.data.squadra === 'casa') scorersHome.appendChild(li);
     else scorersAway.appendChild(li);
   }
 }
@@ -1729,6 +1874,7 @@ function openGoalOverlay(squadra) {
         minutoGioco: pendingGoal.minutoGioco,
         fase: pendingGoal.fase
       });
+      actionOrder.push('goal');
       undoStack = [];
       pendingGoal = null;
       goalOverlay.classList.remove('open');
@@ -1752,16 +1898,115 @@ overlayCancel.addEventListener('pointerdown', function(e) {
   closeGoalOverlay();
 });
 
+// ── Card overlay (ammonizioni / espulsioni) ──
+var cardOverlay = document.getElementById('card-overlay');
+var cardOverlayTitle = document.getElementById('card-overlay-title');
+var cardOverlayGrid = document.getElementById('card-overlay-grid');
+var cardOverlayCancel = document.getElementById('card-overlay-cancel');
+var cardTeamGroup = document.getElementById('card-team-group');
+var cardTypeGroup = document.getElementById('card-type-group');
+var pendingCard = null; // { squadra, tipo, minutoGioco, fase }
+
+function renderCardPlayerGrid() {
+  if (!pendingCard) return;
+  var rosa = pendingCard.squadra === 'casa' ? squadre.casa.rosa : squadre.trasferta.rosa;
+  cardOverlayGrid.innerHTML = '';
+  rosa.forEach(function(giocatore) {
+    var btn = document.createElement('button');
+    btn.textContent = giocatore;
+    btn.addEventListener('click', function() {
+      cartellini.push({
+        squadra: pendingCard.squadra,
+        giocatore: giocatore,
+        tipo: pendingCard.tipo,
+        minutoGioco: pendingCard.minutoGioco,
+        fase: pendingCard.fase
+      });
+      actionOrder.push('card');
+      undoStack = [];
+      pendingCard = null;
+      cardOverlay.classList.remove('open');
+      updateScoreboard();
+      playWhistle('short');
+      saveMatch();
+    });
+    cardOverlayGrid.appendChild(btn);
+  });
+}
+
+function updateCardToggleUI() {
+  if (!pendingCard) return;
+  var teamBtns = cardTeamGroup.querySelectorAll('.card-toggle-btn');
+  teamBtns.forEach(function(b) {
+    b.classList.toggle('active', b.dataset.team === pendingCard.squadra);
+  });
+  var typeBtns = cardTypeGroup.querySelectorAll('.card-toggle-btn');
+  typeBtns.forEach(function(b) {
+    b.classList.toggle('active', b.dataset.type === pendingCard.tipo);
+  });
+  var nomeSquadra = pendingCard.squadra === 'casa' ? squadre.casa.nome : squadre.trasferta.nome;
+  cardOverlayTitle.textContent = 'CARTELLINO ' + nomeSquadra + ' — ' + pendingCard.minutoGioco + "'";
+}
+
+function openCardOverlay() {
+  if (fase === 'FINITA' || fase === 'RIGORI') return;
+  var minuto = getCurrentMinute();
+  pendingCard = { squadra: 'casa', tipo: 'giallo', minutoGioco: minuto, fase: fase };
+  updateCardToggleUI();
+  renderCardPlayerGrid();
+  cardOverlay.classList.add('open');
+}
+
+function closeCardOverlay() {
+  pendingCard = null;
+  cardOverlay.classList.remove('open');
+}
+
+cardTeamGroup.addEventListener('click', function(e) {
+  var btn = e.target.closest ? e.target.closest('button') : null;
+  if (!btn || !pendingCard) return;
+  pendingCard.squadra = btn.dataset.team;
+  updateCardToggleUI();
+  renderCardPlayerGrid();
+});
+
+cardTypeGroup.addEventListener('click', function(e) {
+  var btn = e.target.closest ? e.target.closest('button') : null;
+  if (!btn || !pendingCard) return;
+  pendingCard.tipo = btn.dataset.type;
+  updateCardToggleUI();
+});
+
+cardOverlayCancel.addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  closeCardOverlay();
+});
+
+// Annulla l'ultima azione registrata (gol o cartellino) in base a actionOrder.
 function undoLastGoal() {
-  if (marcatori.length === 0) return;
-  undoStack.push(marcatori.pop());
+  if (actionOrder.length === 0) return;
+  var last = actionOrder.pop();
+  if (last === 'goal') {
+    if (marcatori.length === 0) return;
+    undoStack.push({ type: 'goal', event: marcatori.pop() });
+  } else {
+    if (cartellini.length === 0) return;
+    undoStack.push({ type: 'card', event: cartellini.pop() });
+  }
   updateScoreboard();
   saveMatch();
 }
 
 function redoLastGoal() {
   if (undoStack.length === 0) return;
-  marcatori.push(undoStack.pop());
+  var restored = undoStack.pop();
+  if (restored.type === 'goal') {
+    marcatori.push(restored.event);
+    actionOrder.push('goal');
+  } else {
+    cartellini.push(restored.event);
+    actionOrder.push('card');
+  }
   updateScoreboard();
   saveMatch();
 }
@@ -1821,6 +2066,7 @@ btnGoalHome.addEventListener('pointerdown', function(e) { e.preventDefault(); op
 btnGoalAway.addEventListener('pointerdown', function(e) { e.preventDefault(); openGoalOverlay('trasferta'); });
 btnUndo.addEventListener('pointerdown', function(e) { e.preventDefault(); undoLastGoal(); });
 btnRedo.addEventListener('pointerdown', function(e) { e.preventDefault(); redoLastGoal(); });
+btnCard.addEventListener('pointerdown', function(e) { e.preventDefault(); openCardOverlay(); });
 
 document.addEventListener('pointerdown', function(e) {
   if (!e.target.closest('.settings-wrap')) closeSettings();

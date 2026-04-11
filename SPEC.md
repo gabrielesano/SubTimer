@@ -59,6 +59,14 @@ separata (`subbuteo:rosters`) indipendente dalla partita corrente.
     minutoGioco: number,       // minuto arrotondato all'intero superiore
     fase: string               // la fase in cui è stato segnato
   }>,
+  cartellini: Array<{
+    squadra: "casa" | "trasferta",
+    giocatore: string,
+    tipo: "giallo" | "rosso",
+    minutoGioco: number,       // stessa convenzione dei gol
+    fase: string
+  }>,
+  actionOrder: Array<"goal" | "card">,  // ordine cronologico di push per undo
   rigori: Array<{
     squadra: "casa" | "trasferta",
     giocatore: string,
@@ -66,6 +74,11 @@ separata (`subbuteo:rosters`) indipendente dalla partita corrente.
   }>
 }
 ```
+
+Il campo `actionOrder` tiene traccia dell'ordine in cui gol e cartellini
+sono stati registrati, così il bottone "Annulla" può annullare sempre
+l'ultima azione (gol o cartellino, indifferentemente). Lo `undoStack`
+(redo stack) conserva oggetti `{ type: 'goal'|'card', event }`.
 
 Il **punteggio non è memorizzato**: va calcolato al volo dall'array
 `marcatori` (contando le entry per squadra). Questo elimina il rischio
@@ -202,10 +215,40 @@ Layout a tre fasce orizzontali, pensato per iPad in landscape:
 
 **Fascia inferiore**:
 - Due bottoni grandi "+ GOL CASA" e "+ GOL TRASFERTA".
-- Un bottone più piccolo ma accessibile "Annulla" (rimuove
-  l'ultima entry dall'array marcatori).
-- Un bottone "Ripristina" per recuperare un gol annullato per errore
-  (redo). Lo stack di redo viene svuotato quando si registra un nuovo gol.
+- Un bottone "CART." centrale per aprire l'overlay cartellini.
+- Un bottone più piccolo ma accessibile "Annulla" (rimuove l'ultima
+  azione registrata, sia essa un gol o un cartellino, secondo
+  `actionOrder`).
+- Un bottone "Ripristina" per recuperare un evento annullato per errore
+  (redo). Lo stack di redo viene svuotato quando si registra un nuovo
+  evento (gol o cartellino).
+
+### Overlay cartellino
+
+Quando l'utente preme "CART.":
+1. Si cattura il minuto corrente (stessa logica dei gol).
+2. Appare un overlay modale con, in alto, due gruppi di toggle:
+   - Squadra: `[CASA] [TRASFERTA]` (default: casa).
+   - Tipo: `[GIALLO] [ROSSO]` (default: giallo).
+3. Sotto i toggle, la griglia dei giocatori della squadra selezionata.
+4. Al cambio di squadra, la griglia viene rigenerata.
+5. Al tap su un giocatore, il cartellino viene registrato con il minuto
+   catturato all'apertura dell'overlay e l'overlay si chiude.
+6. Un bottone "Annulla" permette di uscire senza registrare.
+
+Il cartellino si aggiunge all'array `cartellini` e viene mostrato nel
+tabellino della squadra corrispondente, intercalato cronologicamente con
+i gol (ordinamento per `fase` secondo `PHASES`, poi per `minutoGioco`).
+I cartellini sono distinti visivamente da un marker colorato (giallo o
+rosso) prima del nome del giocatore.
+
+Nessuna regola calcistica è imposta dall'applicazione: l'utente può
+assegnare più cartellini allo stesso giocatore, l'app non sostituisce
+automaticamente due gialli con un rosso né blocca i gol di un giocatore
+espulso. È uno strumento di tracciamento, non un arbitro virtuale.
+
+All'overlay cartellino non si accede durante la fase RIGORI né a partita
+FINITA.
 
 ### Overlay selezione marcatore
 
@@ -371,7 +414,6 @@ Ogni step chiude un pezzo funzionale e lascia l'app comunque usabile.
 
 Esplicitamente fuori scope per la prima versione (richiesto dall'utente):
 
-- Ammonizioni e espulsioni.
 - Export del riepilogo partita.
 - Storico partite passate.
 - Secondo display/proiezione su TV.
