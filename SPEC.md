@@ -213,7 +213,9 @@ Layout a tre fasce orizzontali, pensato per iPad in landscape:
 
 **Fascia centrale (grande, protagonista)**:
 - Colonna sinistra: nome squadra casa in alto, punteggio enorme sotto,
-  lista compatta marcatori sotto ancora (`nome giocatore — minuto'`).
+  lista compatta marcatori sotto ancora
+  (`nome giocatore — minuto' FASE`, dove FASE è l'abbreviazione della
+  fase in cui è avvenuto l'evento: `PT`, `ST`, `1°TS`, `2°TS`).
 - Colonna centrale: timer gigantesco formato `MM:SS`, con bottone play/pausa
   grande sotto. Il timer diventa rosso quando si supera `durataFaseMs`.
 - Colonna destra: specchio della sinistra per la squadra trasferta.
