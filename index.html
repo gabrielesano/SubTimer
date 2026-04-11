@@ -785,6 +785,217 @@ html, body {
   color: #22c55e;
   margin-top: 1vh;
 }
+
+/* ── SUMMARY PANEL (replaces center+bottom when fase === FINITA) ── */
+.summary-panel {
+  display: none;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5vh 2vw 2vh;
+  gap: 1vh;
+  min-height: 0;
+}
+
+.summary-panel.active {
+  display: flex;
+}
+
+.summary-title {
+  font-size: clamp(18px, 3vh, 30px);
+  font-weight: 800;
+  color: #d4a017;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.summary-score {
+  display: flex;
+  align-items: center;
+  gap: 3vw;
+  flex-shrink: 0;
+}
+
+.summary-team {
+  text-align: center;
+  min-width: 22vw;
+}
+
+.summary-team-name {
+  font-size: clamp(14px, 2vh, 20px);
+  font-weight: 700;
+  color: #ccc;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.summary-team-score {
+  font-size: clamp(40px, 10vh, 90px);
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-team-home .summary-team-score { color: #60a5fa; }
+.summary-team-away .summary-team-score { color: #f87171; }
+
+.summary-vs {
+  font-size: clamp(24px, 6vh, 60px);
+  color: #666;
+  font-weight: 800;
+}
+
+.summary-rigori-score {
+  font-size: clamp(13px, 1.9vh, 17px);
+  color: #aaa;
+  font-style: italic;
+}
+
+.summary-rigori-score:empty {
+  display: none;
+}
+
+.summary-content {
+  flex: 1 1 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  width: min(760px, 96%);
+  padding: 0 1vw;
+  min-height: 0;
+}
+
+.summary-phase {
+  margin-bottom: 1.2vh;
+}
+
+.summary-phase-label {
+  font-size: clamp(12px, 1.7vh, 15px);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #d4a017;
+  text-align: center;
+  padding: 0.6vh 0;
+  border-top: 1px solid #333;
+  border-bottom: 1px solid #333;
+  margin-bottom: 0.6vh;
+}
+
+.summary-phase-empty {
+  text-align: center;
+  color: #555;
+  font-style: italic;
+  font-size: clamp(11px, 1.6vh, 14px);
+  padding: 0.4vh 0;
+}
+
+.summary-event {
+  display: grid;
+  grid-template-columns: 1em 3.2em 1fr auto;
+  align-items: center;
+  gap: 0.7em;
+  padding: 0.3vh 0.5em;
+  font-size: clamp(13px, 1.95vh, 17px);
+}
+
+.summary-team-dot {
+  width: 0.9em;
+  height: 0.9em;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.summary-team-dot.home { background: #60a5fa; }
+.summary-team-dot.away { background: #f87171; }
+
+.summary-minute {
+  color: #999;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.summary-name {
+  color: #e8e8e8;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-event-type {
+  font-size: 0.85em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #888;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.summary-event-type.goal {
+  color: #22c55e;
+}
+
+.summary-event-type.card-yellow {
+  color: #eab308;
+}
+
+.summary-event-type.card-red {
+  color: #ef4444;
+}
+
+.summary-rigori-rounds {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3vh;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.summary-rigori-row {
+  display: grid;
+  grid-template-columns: 1em 1fr auto 1fr 1em;
+  align-items: center;
+  gap: 0.6em;
+  font-size: clamp(13px, 1.9vh, 16px);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-rigori-row .r-num {
+  color: #666;
+  text-align: center;
+  font-size: 0.85em;
+}
+
+.summary-rigori-row .r-outcome {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.summary-rigori-row .r-outcome.home { text-align: right; }
+.summary-rigori-row .r-outcome.away { text-align: left; }
+.summary-rigori-row .r-outcome.gol { color: #22c55e; }
+.summary-rigori-row .r-outcome.err { color: #ef4444; }
+.summary-rigori-row .r-outcome.pending { color: #444; }
+
+.btn-new-match-summary {
+  padding: 1.8vh 6vw;
+  border: none;
+  border-radius: 12px;
+  background: #d4a017;
+  color: #0d0d0d;
+  font-size: clamp(16px, 2.5vh, 22px);
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.btn-new-match-summary:active {
+  filter: brightness(0.85);
+}
 </style>
 </head>
 <body>
@@ -921,6 +1132,25 @@ html, body {
     </div>
     <button id="r-undo" class="btn-rigore-undo">↩ ANNULLA ULTIMO</button>
     <div id="r-winner" class="rigori-winner"></div>
+  </div>
+
+  <!-- ── SUMMARY PANEL (replaces center+bottom when fase === FINITA) ── -->
+  <div id="summary-panel" class="summary-panel">
+    <div class="summary-title">FINE PARTITA</div>
+    <div class="summary-score">
+      <div class="summary-team summary-team-home">
+        <div class="summary-team-name" id="summary-name-home"></div>
+        <div class="summary-team-score" id="summary-score-home">0</div>
+      </div>
+      <div class="summary-vs">—</div>
+      <div class="summary-team summary-team-away">
+        <div class="summary-team-name" id="summary-name-away"></div>
+        <div class="summary-team-score" id="summary-score-away">0</div>
+      </div>
+    </div>
+    <div id="summary-rigori-score" class="summary-rigori-score"></div>
+    <div id="summary-content" class="summary-content"></div>
+    <button id="btn-new-match-summary" class="btn-new-match-summary">Nuova partita</button>
   </div>
 
   <!-- ── BOTTOM BAR ── -->
@@ -1278,7 +1508,9 @@ function clearMatch() {
 function loadMatch() {
   try {
     var data = JSON.parse(localStorage.getItem(MATCH_KEY));
-    if (data && data.fase && data.fase !== 'FINITA') return data;
+    // Ritorniamo anche le partite FINITA: al ripristino la schermata di
+    // riepilogo resta visibile finché l'utente non tappa "Nuova partita".
+    if (data && data.fase) return data;
   } catch (e) {}
   return null;
 }
@@ -1617,6 +1849,7 @@ function togglePlayPause() {
 
 // ── Phase badges ──
 var rigoriPanel = document.getElementById('rigori-panel');
+var summaryPanel = document.getElementById('summary-panel');
 var matchCenter = document.querySelector('.center');
 var matchBottom = document.querySelector('.bottom-bar');
 
@@ -1639,12 +1872,15 @@ function updatePhaseBadges() {
     timerDisplay.textContent = '--:--';
     timerDisplay.classList.remove('expired');
   }
-  // show/hide rigori panel vs normal center+bottom
+  // show/hide rigori panel / summary panel vs normal center+bottom
   var isRigori = fase === 'RIGORI';
+  var isFinita = fase === 'FINITA';
   rigoriPanel.classList.toggle('active', isRigori);
-  matchCenter.style.display = isRigori ? 'none' : '';
-  matchBottom.style.display = isRigori ? 'none' : '';
+  summaryPanel.classList.toggle('active', isFinita);
+  matchCenter.style.display = (isRigori || isFinita) ? 'none' : '';
+  matchBottom.style.display = (isRigori || isFinita) ? 'none' : '';
   if (isRigori) updateRigoriUI();
+  if (isFinita) renderSummary();
 }
 
 // ── Rigori ──
@@ -1846,6 +2082,196 @@ function getCurrentMinute() {
   var elapsed = getCurrentElapsed();
   return Math.ceil(elapsed / 60000) || 1;
 }
+
+// ── Summary (FINITA screen) ──
+var summaryContent = document.getElementById('summary-content');
+var summaryNameHome = document.getElementById('summary-name-home');
+var summaryNameAway = document.getElementById('summary-name-away');
+var summaryScoreHome = document.getElementById('summary-score-home');
+var summaryScoreAway = document.getElementById('summary-score-away');
+var summaryRigoriScore = document.getElementById('summary-rigori-score');
+var btnNewMatchSummary = document.getElementById('btn-new-match-summary');
+
+var PHASE_LABELS = {
+  '1T':  'Primo tempo',
+  '2T':  'Secondo tempo',
+  '1TS': 'Primo supplementare',
+  '2TS': 'Secondo supplementare'
+};
+
+function buildPhaseSection(phaseKey) {
+  var label = PHASE_LABELS[phaseKey];
+  var events = [];
+  for (var i = 0; i < marcatori.length; i++) {
+    if (marcatori[i].fase === phaseKey) {
+      events.push({ kind: 'goal', data: marcatori[i] });
+    }
+  }
+  for (var j = 0; j < cartellini.length; j++) {
+    if (cartellini[j].fase === phaseKey) {
+      events.push({ kind: cartellini[j].tipo, data: cartellini[j] });
+    }
+  }
+  events.sort(function(a, b) { return a.data.minutoGioco - b.data.minutoGioco; });
+
+  var section = document.createElement('div');
+  section.className = 'summary-phase';
+
+  var title = document.createElement('div');
+  title.className = 'summary-phase-label';
+  title.textContent = label;
+  section.appendChild(title);
+
+  if (events.length === 0) {
+    var empty = document.createElement('div');
+    empty.className = 'summary-phase-empty';
+    empty.textContent = 'Nessun evento';
+    section.appendChild(empty);
+    return section;
+  }
+
+  for (var k = 0; k < events.length; k++) {
+    var ev = events[k];
+    var row = document.createElement('div');
+    row.className = 'summary-event';
+
+    var dot = document.createElement('span');
+    dot.className = 'summary-team-dot ' + (ev.data.squadra === 'casa' ? 'home' : 'away');
+    row.appendChild(dot);
+
+    var minute = document.createElement('span');
+    minute.className = 'summary-minute';
+    minute.textContent = ev.data.minutoGioco + "'";
+    row.appendChild(minute);
+
+    var name = document.createElement('span');
+    name.className = 'summary-name';
+    name.textContent = ev.data.giocatore || '—';
+    row.appendChild(name);
+
+    var typeEl = document.createElement('span');
+    if (ev.kind === 'goal') {
+      typeEl.className = 'summary-event-type goal';
+      typeEl.textContent = 'GOL';
+    } else if (ev.kind === 'giallo') {
+      typeEl.className = 'summary-event-type card-yellow';
+      var markY = document.createElement('span');
+      markY.className = 'card-mark yellow';
+      typeEl.appendChild(markY);
+      typeEl.appendChild(document.createTextNode('AMM.'));
+    } else {
+      typeEl.className = 'summary-event-type card-red';
+      var markR = document.createElement('span');
+      markR.className = 'card-mark red';
+      typeEl.appendChild(markR);
+      typeEl.appendChild(document.createTextNode('ESP.'));
+    }
+    row.appendChild(typeEl);
+
+    section.appendChild(row);
+  }
+
+  return section;
+}
+
+function buildRigoriSection() {
+  if (rigori.length === 0) return null;
+  var section = document.createElement('div');
+  section.className = 'summary-phase';
+
+  var title = document.createElement('div');
+  title.className = 'summary-phase-label';
+  title.textContent = 'Rigori';
+  section.appendChild(title);
+
+  var rounds = document.createElement('div');
+  rounds.className = 'summary-rigori-rounds';
+
+  var totalRounds = Math.ceil(rigori.length / 2);
+  for (var r = 0; r < totalRounds; r++) {
+    var row = document.createElement('div');
+    row.className = 'summary-rigori-row';
+
+    var dotH = document.createElement('span');
+    dotH.className = 'summary-team-dot home';
+    row.appendChild(dotH);
+
+    var homeKick = rigori[r * 2];
+    var homeEl = document.createElement('span');
+    homeEl.className = 'r-outcome home ' + (homeKick ? (homeKick.esito === 'gol' ? 'gol' : 'err') : 'pending');
+    homeEl.textContent = homeKick ? (homeKick.esito === 'gol' ? 'GOL' : 'ERR') : '—';
+    row.appendChild(homeEl);
+
+    var num = document.createElement('span');
+    num.className = 'r-num';
+    num.textContent = (r + 1);
+    row.appendChild(num);
+
+    var awayKick = rigori[r * 2 + 1];
+    var awayEl = document.createElement('span');
+    awayEl.className = 'r-outcome away ' + (awayKick ? (awayKick.esito === 'gol' ? 'gol' : 'err') : 'pending');
+    awayEl.textContent = awayKick ? (awayKick.esito === 'gol' ? 'GOL' : 'ERR') : '—';
+    row.appendChild(awayEl);
+
+    var dotA = document.createElement('span');
+    dotA.className = 'summary-team-dot away';
+    row.appendChild(dotA);
+
+    rounds.appendChild(row);
+  }
+
+  section.appendChild(rounds);
+  return section;
+}
+
+// Decide quali fasi mostrare: 1T e 2T sempre; 1TS/2TS se contengono eventi
+// oppure se sono stati raggiunti i rigori (implica supplementari giocati).
+function phaseHasAnyEvent(phaseKey) {
+  for (var i = 0; i < marcatori.length; i++) {
+    if (marcatori[i].fase === phaseKey) return true;
+  }
+  for (var j = 0; j < cartellini.length; j++) {
+    if (cartellini[j].fase === phaseKey) return true;
+  }
+  return false;
+}
+
+function renderSummary() {
+  summaryNameHome.textContent = squadre.casa.nome;
+  summaryNameAway.textContent = squadre.trasferta.nome;
+
+  var score = getScore();
+  summaryScoreHome.textContent = score.casa;
+  summaryScoreAway.textContent = score.trasferta;
+
+  // Indicazione rigori (sotto il punteggio) se presenti
+  if (rigori.length > 0) {
+    var rs = getRigoriScore();
+    summaryRigoriScore.textContent =
+      '(dopo i rigori: ' + squadre.casa.nome + ' ' + rs.casa +
+      ' — ' + rs.trasferta + ' ' + squadre.trasferta.nome + ')';
+  } else {
+    summaryRigoriScore.textContent = '';
+  }
+
+  summaryContent.innerHTML = '';
+
+  var suppPlayed = rigori.length > 0 || phaseHasAnyEvent('1TS') || phaseHasAnyEvent('2TS');
+  var phasesToShow = ['1T', '2T'];
+  if (suppPlayed) phasesToShow.push('1TS', '2TS');
+
+  for (var i = 0; i < phasesToShow.length; i++) {
+    summaryContent.appendChild(buildPhaseSection(phasesToShow[i]));
+  }
+
+  var rigoriSection = buildRigoriSection();
+  if (rigoriSection) summaryContent.appendChild(rigoriSection);
+}
+
+btnNewMatchSummary.addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  showSetup();
+});
 
 // ── Goal overlay ──
 var goalOverlay = document.getElementById('goal-overlay');

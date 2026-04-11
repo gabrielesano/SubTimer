@@ -172,6 +172,11 @@ registrare sequenze di rigori alternati, ognuno con esito gol/errore.
 Quando matematicamente una squadra ha vinto, mostra il risultato finale
 ma lascia comunque la possibilità di passare manualmente a FINITA.
 
+**Fase FINITA**: quando la partita termina (dopo 2T, 2TS o RIGORI),
+l'interfaccia di gioco viene sostituita da una schermata di riepilogo
+(vedi sezione "Schermata riepilogo finale"). Il pannello riepilogo
+resta attivo finché l'utente non tappa "Nuova partita".
+
 **Navigazione indietro**: serve un modo per tornare alla fase precedente
 nel caso si prema "fase successiva" per sbaglio. Da collocare in un menu
 secondario (es. icona ingranaggio in alto) per evitare tap accidentali
@@ -222,6 +227,44 @@ Layout a tre fasce orizzontali, pensato per iPad in landscape:
 - Un bottone "Ripristina" per recuperare un evento annullato per errore
   (redo). Lo stack di redo viene svuotato quando si registra un nuovo
   evento (gol o cartellino).
+
+### Schermata riepilogo finale
+
+Attivata automaticamente quando `fase === 'FINITA'`. Sostituisce la
+fascia centrale e la bottom-bar (analogo al pannello RIGORI). Struttura:
+
+- **Titolo**: "FINE PARTITA".
+- **Punteggio finale**: nomi squadre + cifre grandi, stessi colori usati
+  durante la partita (blu casa, rosso trasferta).
+- **Riga rigori** (solo se presenti): sotto il punteggio, in italico,
+  riporta il risultato ai rigori.
+- **Elenco eventi per fase**, scrollabile, con separatori:
+  - Ogni fase giocata è introdotta da un'etichetta full-width
+    (bordo sopra/sotto, testo oro maiuscolo): "Primo tempo", "Secondo
+    tempo", "Primo supplementare", "Secondo supplementare".
+  - Sotto l'etichetta, gli eventi di quella fase (gol + cartellini)
+    ordinati per `minutoGioco` crescente.
+  - Se la fase è stata giocata ma non ha eventi → placeholder "Nessun
+    evento" in italico.
+  - Fasi da mostrare: 1T e 2T sempre; 1TS e 2TS solo se contengono
+    eventi o se sono stati raggiunti i rigori (che implica supplementari
+    giocati).
+- **Sezione rigori** (solo se `rigori.length > 0`): etichetta "Rigori"
+  e griglia round-per-round con l'esito di ciascun tiro (GOL/ERR),
+  numerazione del round al centro.
+- **Bottone "Nuova partita"**: in fondo, grande, color oro. Azzera la
+  partita salvata e torna alla schermata setup.
+
+Formato di ogni riga evento:
+```
+[● colore squadra]  [minuto']  [nome giocatore]  [tipo evento]
+```
+dove il tipo evento è `GOL` (verde), `● AMM.` (giallo) o `● ESP.` (rosso).
+
+**Recovery al reload**: a differenza delle altre fasi, un salvataggio
+con `fase === 'FINITA'` NON viene scartato da `loadMatch()`. Il
+ripristino mostra la schermata di riepilogo. Solo tappando "Nuova
+partita" viene chiamato `clearMatch()` e si torna al setup.
 
 ### Overlay cartellino
 
@@ -346,11 +389,15 @@ Se l'API non è supportata, l'app deve funzionare comunque senza errori.
 ## Persistenza e recovery
 
 Lo stato partita è serializzato in `localStorage` a ogni modifica
-(punteggio, timer pausa/play, transizione fase, registrazione gol). Al
-caricamento della pagina:
+(punteggio, timer pausa/play, transizione fase, registrazione gol o
+cartellino). Al caricamento della pagina:
 
-1. Se esiste uno stato partita salvato e la fase non è `FINITA` → ripristina
-   e mostra la schermata partita direttamente.
+1. Se esiste uno stato partita salvato → ripristina e mostra la
+   schermata appropriata:
+   - Se `fase === 'FINITA'` → mostra direttamente la schermata di
+     riepilogo finale (resta visibile finché l'utente non tappa
+     "Nuova partita").
+   - Altrimenti → mostra la schermata partita.
 2. Altrimenti → mostra la schermata setup.
 
 **Attenzione al timer durante il recovery**: se l'utente ricarica la pagina

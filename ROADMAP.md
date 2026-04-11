@@ -30,8 +30,12 @@
   fase, per evitare tap accidentali durante il gioco.
 - **Vibrazione al tap** (dove supportata): feedback aptico sui bottoni
   principali tramite `navigator.vibrate()`.
-- **Schermata finale riepilogativa**: quando la partita finisce, mostrare
-  un riepilogo con punteggio, marcatori, rigori, durata totale.
+- ~~**Schermata finale riepilogativa**~~: ✅ quando `fase === 'FINITA'`,
+  sostituisce la fascia centrale con pannello dedicato: punteggio finale,
+  risultato rigori se presenti, eventi (gol + cartellini) raggruppati per
+  fase con separatori, sezione rigori round-per-round, bottone "Nuova
+  partita". Il riepilogo persiste anche dopo reload (loadMatch non scarta
+  più le partite FINITA). Durata totale non inclusa — non tracciata.
 - **Tema colori per squadra**: associare un colore primario a ogni squadra
   nella rosa (es. azzurro Napoli, rosso Manchester) e usarlo nei bottoni
   gol e nel punteggio.
