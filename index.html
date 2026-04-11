@@ -2063,14 +2063,16 @@ function updateScoreboard() {
   for (var k = 0; k < events.length; k++) {
     var ev = events[k];
     var li = document.createElement('li');
+    var phaseLabel = PHASE_SHORT[ev.data.fase] || '';
+    var timeStr = ev.data.minutoGioco + "'" + (phaseLabel ? ' ' + phaseLabel : '');
     if (ev.kind === 'goal') {
-      li.textContent = (ev.data.giocatore || 'Gol') + ' — ' + ev.data.minutoGioco + "'";
+      li.textContent = (ev.data.giocatore || 'Gol') + ' — ' + timeStr;
       li.className = 'scorer-goal';
     } else {
       var mark = document.createElement('span');
       mark.className = 'card-mark ' + (ev.kind === 'giallo' ? 'yellow' : 'red');
       li.appendChild(mark);
-      li.appendChild(document.createTextNode(ev.data.giocatore + ' — ' + ev.data.minutoGioco + "'"));
+      li.appendChild(document.createTextNode(ev.data.giocatore + ' — ' + timeStr));
       li.className = 'scorer-card';
     }
     if (ev.data.squadra === 'casa') scorersHome.appendChild(li);
@@ -2097,6 +2099,13 @@ var PHASE_LABELS = {
   '2T':  'Secondo tempo',
   '1TS': 'Primo supplementare',
   '2TS': 'Secondo supplementare'
+};
+
+var PHASE_SHORT = {
+  '1T':  'PT',
+  '2T':  'ST',
+  '1TS': '1°TS',
+  '2TS': '2°TS'
 };
 
 function buildPhaseSection(phaseKey) {
