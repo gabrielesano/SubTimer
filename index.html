@@ -3088,6 +3088,7 @@ function goToPhase(newPhase) {
 function nextPhase() {
   var idx = PHASES.indexOf(fase);
   if (idx >= PHASES.length - 1) return;
+  if (!confirm('Passare alla fase successiva?')) return;
   var score = getScore();
   var tied = score.casa === score.trasferta;
   if (fase === '2T' && !tied) { goToPhase('FINITA'); return; }
