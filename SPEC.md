@@ -45,8 +45,8 @@ storico delle partite concluse vive in una terza chiave
 ```
 {
   squadre: {
-    casa: { nome: string, rosa: string[] },
-    trasferta: { nome: string, rosa: string[] }
+    casa: { nome: string, rosa: string[], schema: ColorSchema | null },
+    trasferta: { nome: string, rosa: string[], schema: ColorSchema | null }
   },
   fase: "1T" | "2T" | "1TS" | "2TS" | "RIGORI" | "FINITA",
   timer: {
@@ -91,26 +91,78 @@ di desincronizzazione tra punteggio e lista marcatori.
 ```
 {
   squadre: [
-    { nome: "Italia", rosa: ["Giacinto Facchetti (D)", "Gigi Riva (A)", ...] },
-    { nome: "Unione Sovietica", rosa: [...] },
+    {
+      nome: "Italia",
+      rosa: ["3 Giacinto Facchetti (D)", "7 Gigi Riva (A)", ...],
+      schema: { id: "blu-bianco", pattern: "tinta-unita", colori: ["#2563eb"], pantaloncini: "#ffffff" }
+    },
     ...
   ]
 }
 ```
 
-I nomi dei giocatori nelle rose includono il ruolo abbreviato tra
-parentesi: **(P)** portiere, **(D)** difensore, **(C)** centrocampista,
-**(A)** attaccante.
+I nomi dei giocatori nelle rose usano il formato `"N Nome (Ruolo)"` dove
+N è il numero di maglia (opzionale), e il ruolo abbreviato tra parentesi:
+**(P)** portiere, **(D)** difensore, **(C)** centrocampista,
+**(A)** attaccante. Rose senza numeri di maglia funzionano come prima.
+
+### Schema colori (`ColorSchema`)
+
+```
+{
+  id: string,                    // es. "blu-bianco" (maglia-pantaloncini)
+  pattern: "tinta-unita" | "strisce-verticali" | "strisce-orizzontali",
+  colori: string[],              // hex — 1 colore per tinta-unita, 2+ per strisce
+  pantaloncini: string           // hex colore pantaloncini
+}
+```
+
+Lo schema viene associato a ogni rosa tramite `rose-index.json`, copiato
+nello stato partita all'avvio, e usato per impostare i CSS custom
+properties `--color-home`, `--color-away`, `--color-home-bg`,
+`--color-away-bg` (quest'ultime calcolate con `darkenHex()`).
+
+### Rose predefinite e directory structure
+
+Le rose predefinite risiedono nella directory `rose/`, organizzate
+per schema colori:
+
+```
+rose/
+  blu-bianco/
+    rosa_italia_1970.json
+    rosa_napoli_1986-87.json
+  rosso-bianco/
+    rosa_manchester_utd_1998-99.json
+    rosa_urss_1970.json
+```
+
+Il file `rose-index.json` in root elenca gli schemi e le rose associate:
+
+```json
+{
+  "schemi": [
+    {
+      "id": "blu-bianco",
+      "pattern": "tinta-unita",
+      "colori": ["#2563eb"],
+      "pantaloncini": "#ffffff",
+      "rose": ["rose/blu-bianco/rosa_italia_1970.json", ...]
+    }
+  ]
+}
+```
 
 Le rose sono gestite nella schermata setup e riutilizzate tra partite.
 Al primo avvio (localStorage vuoto), le rose vengono auto-importate
-dai file JSON presenti nella directory (`rosa_italia.json`,
-`rosa_urss.json`). Dalla schermata setup è possibile importare
-ulteriori file JSON con formato `{ nome, rosa }`.
+da `rose-index.json`. I dropdown di selezione squadre raggruppano le
+rose per schema colori con `<optgroup>`. Dalla schermata setup è
+possibile importare ulteriori file JSON con formato `{ nome, rosa }`.
 
 All'inizio di una nuova partita, si selezionano due squadre dal
 menu e le rose vengono **copiate** nello stato partita (non referenziate),
-così modifiche successive alle rose non toccano partite in corso.
+incluso lo schema colori, così modifiche successive alle rose non
+toccano partite in corso.
 
 ## Logica timer
 

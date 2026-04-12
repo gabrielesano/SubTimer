@@ -1,6 +1,24 @@
-[
-  "rosa_italia_1970.json",
-  "rosa_urss_1970.json",
-  "rosa_napoli_1986-87.json",
-  "rosa_manchester_utd_1998-99.json"
-]
+{
+  "schemi": [
+    {
+      "id": "blu-bianco",
+      "pattern": "tinta-unita",
+      "colori": ["#2563eb"],
+      "pantaloncini": "#ffffff",
+      "rose": [
+        "rose/blu-bianco/rosa_italia_1970.json",
+        "rose/blu-bianco/rosa_napoli_1986-87.json"
+      ]
+    },
+    {
+      "id": "rosso-bianco",
+      "pattern": "tinta-unita",
+      "colori": ["#ef4444"],
+      "pantaloncini": "#ffffff",
+      "rose": [
+        "rose/rosso-bianco/rosa_manchester_utd_1998-99.json",
+        "rose/rosso-bianco/rosa_urss_1970.json"
+      ]
+    }
+  ]
+}

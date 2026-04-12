@@ -27,14 +27,17 @@
 - ~~**Ordinamento giocatori per ruolo**~~: ✅ griglia overlay gol e
   cartellini raggruppata per ruolo (A→C→D→P, poi Altri) con separatori.
   Funzione condivisa `populatePlayerGrid`.
-- **Rose predefinite (catalogo)**: set di rose classiche precaricate
-  selezionabili da un catalogo nella schermata setup.
+- ~~**Rose predefinite (catalogo)**~~: ✅ directory `rose/` organizzata
+  per schema colori, `rose-index.json` come indice, auto-import al
+  primo avvio, dropdown raggruppati per schema.
 - ~~**Numeri di maglia**~~: ✅ parsing formato `"10 Nome (Ruolo)"`.
   Badge numerico nell'overlay, numero nel tabellino live, summary e
   export. Retrocompatibile: rose senza numeri funzionano come prima.
   I file JSON delle rose vanno aggiornati manualmente con dati verificati.
-- **Tema colori per squadra**: colore primario associato a ogni squadra
-  nella rosa, applicato a punteggio e bottoni gol.
+- ~~**Tema colori per squadra**~~: ✅ schema colori (`ColorSchema`) con
+  pattern tinta-unita/strisce, CSS custom properties dinamiche
+  (`--color-home`, `--color-away`, bg variants), rose organizzate in
+  `rose/<schema>/` con `rose-index.json`, dropdown raggruppati per schema.
 - **Icona app personalizzata**: sostituire il placeholder con un'icona
   disegnata ad hoc.
 
