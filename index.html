@@ -10,12 +10,45 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>SubbuteoBoard</title>
 <style>
-/* ── Team color vars ── */
+/* ── Theme vars ── */
 :root {
+  /* Team colors (dynamic, set by JS) */
   --color-home: #60a5fa;
   --color-away: #f87171;
   --color-home-bg: #1e3a5f;
   --color-away-bg: #5f1e1e;
+  /* Base palette */
+  --bg-body: #0d0d0d;
+  --bg-surface: #1a1a1a;
+  --bg-element: #2a2a2a;
+  --bg-inset: #222;
+  --border: #333;
+  --border-light: #444;
+  --border-muted: #555;
+  --text-primary: #e8e8e8;
+  --text-secondary: #ccc;
+  --text-muted: #999;
+  --text-dim: #888;
+  --text-faint: #666;
+  --overlay-bg: rgba(0,0,0,0.92);
+  --toast-bg: rgba(40,40,40,0.95);
+}
+
+.light-theme {
+  --bg-body: #f0f0f0;
+  --bg-surface: #ffffff;
+  --bg-element: #e2e2e2;
+  --bg-inset: #ebebeb;
+  --border: #ccc;
+  --border-light: #bbb;
+  --border-muted: #aaa;
+  --text-primary: #1a1a1a;
+  --text-secondary: #333;
+  --text-muted: #555;
+  --text-dim: #666;
+  --text-faint: #888;
+  --overlay-bg: rgba(255,255,255,0.95);
+  --toast-bg: rgba(240,240,240,0.95);
 }
 
 /* ── Reset & base ── */
@@ -26,8 +59,8 @@ html, body {
   overflow: hidden;
   overflow: clip;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: #0d0d0d;
-  color: #e8e8e8;
+  background: var(--bg-body);
+  color: var(--text-primary);
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -48,8 +81,8 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 0 2vw;
-  background: #1a1a1a;
-  border-bottom: 1px solid #333;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
 }
 
 .phase-badges {
@@ -62,14 +95,14 @@ html, body {
   border-radius: 6px;
   font-size: clamp(12px, 1.8vh, 18px);
   font-weight: 700;
-  background: #2a2a2a;
-  color: #888;
+  background: var(--bg-element);
+  color: var(--text-dim);
   letter-spacing: 0.05em;
 }
 
 .phase-badge.active {
   background: #d4a017;
-  color: #0d0d0d;
+  color: var(--bg-body);
 }
 
 .top-right {
@@ -99,8 +132,8 @@ html, body {
   height: clamp(32px, 4vh, 48px);
   border: none;
   border-radius: 8px;
-  background: #2a2a2a;
-  color: #999;
+  background: var(--bg-element);
+  color: var(--text-muted);
   font-size: clamp(16px, 2.5vh, 24px);
   cursor: pointer;
   display: flex;
@@ -109,7 +142,7 @@ html, body {
 }
 
 .btn-settings:active {
-  background: #444;
+  background: var(--border-light);
 }
 
 /* ── CENTER: scoreboard + timer ── */
@@ -134,7 +167,7 @@ html, body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #ccc;
+  color: var(--text-secondary);
 }
 
 .team-score {
@@ -151,7 +184,7 @@ html, body {
   list-style: none;
   text-align: center;
   font-size: clamp(12px, 1.8vh, 16px);
-  color: #999;
+  color: var(--text-muted);
   max-height: 18vh;
   overflow-y: auto;
   width: 100%;
@@ -175,7 +208,7 @@ html, body {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.05em;
   line-height: 1;
-  color: #e8e8e8;
+  color: var(--text-primary);
 }
 
 .timer-display.expired {
@@ -188,7 +221,7 @@ html, body {
   border: none;
   border-radius: 12px;
   background: #22c55e;
-  color: #0d0d0d;
+  color: #000;
   font-size: clamp(20px, 3.5vh, 36px);
   font-weight: 800;
   cursor: pointer;
@@ -210,8 +243,8 @@ html, body {
   justify-content: center;
   gap: 2vw;
   padding: 0 2vw;
-  background: #1a1a1a;
-  border-top: 1px solid #333;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
 }
 
 .btn-goal {
@@ -242,10 +275,10 @@ html, body {
 
 .btn-undo {
   padding: 1.5vh 2.5vw;
-  border: 2px solid #444;
+  border: 2px solid var(--border-light);
   border-radius: 10px;
   background: transparent;
-  color: #888;
+  color: var(--text-dim);
   font-size: clamp(12px, 1.8vh, 16px);
   font-weight: 600;
   cursor: pointer;
@@ -253,14 +286,14 @@ html, body {
 }
 
 .btn-undo:active {
-  background: #333;
-  color: #ccc;
+  background: var(--border);
+  color: var(--text-secondary);
 }
 
 /* Phase badge past state */
 .phase-badge.past {
-  background: #2a2a2a;
-  color: #999;
+  background: var(--bg-element);
+  color: var(--text-muted);
 }
 
 /* Settings dropdown */
@@ -274,8 +307,8 @@ html, body {
   top: 100%;
   right: 0;
   margin-top: 0.5vh;
-  background: #222;
-  border: 1px solid #444;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-light);
   border-radius: 8px;
   z-index: 100;
   min-width: 200px;
@@ -292,7 +325,7 @@ html, body {
   padding: 1.5vh 2vw;
   border: none;
   background: transparent;
-  color: #ccc;
+  color: var(--text-secondary);
   font-size: clamp(13px, 1.8vh, 17px);
   font-weight: 600;
   text-align: left;
@@ -300,11 +333,11 @@ html, body {
 }
 
 .settings-menu button:active {
-  background: #444;
+  background: var(--border-light);
 }
 
 .settings-menu button + button {
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--border);
 }
 
 /* Hide timer controls in RIGORI/FINITA */
@@ -342,7 +375,7 @@ html, body {
 }
 
 .setup-section {
-  background: #1a1a1a;
+  background: var(--bg-surface);
   border-radius: 12px;
   padding: 2vh 2vw;
 }
@@ -350,7 +383,7 @@ html, body {
 .setup-section h2 {
   font-size: clamp(14px, 2vh, 20px);
   font-weight: 700;
-  color: #999;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 1.5vh;
@@ -366,16 +399,16 @@ html, body {
 .setup-row label {
   font-size: clamp(14px, 2vh, 18px);
   font-weight: 600;
-  color: #ccc;
+  color: var(--text-secondary);
   min-width: 12vw;
 }
 
 .setup-row select, .setup-row input[type="number"] {
   padding: 1vh 1.5vw;
-  border: 1px solid #444;
+  border: 1px solid var(--border-light);
   border-radius: 8px;
-  background: #222;
-  color: #e8e8e8;
+  background: var(--bg-inset);
+  color: var(--text-primary);
   font-size: clamp(14px, 2vh, 18px);
   font-weight: 600;
   min-width: 20vw;
@@ -403,10 +436,10 @@ html, body {
   width: 100%;
   height: 20vh;
   padding: 0.5vh;
-  border: 1px solid #444;
+  border: 1px solid var(--border-light);
   border-radius: 8px;
-  background: #222;
-  color: #e8e8e8;
+  background: var(--bg-inset);
+  color: var(--text-primary);
   font-size: clamp(13px, 1.8vh, 16px);
 }
 
@@ -425,10 +458,10 @@ html, body {
   width: 100%;
   height: 20vh;
   padding: 1vh 1vw;
-  border: 1px solid #444;
+  border: 1px solid var(--border-light);
   border-radius: 8px;
-  background: #222;
-  color: #e8e8e8;
+  background: var(--bg-inset);
+  color: var(--text-primary);
   font-size: clamp(13px, 1.8vh, 16px);
   font-family: inherit;
   resize: none;
@@ -441,17 +474,17 @@ html, body {
   font-size: clamp(12px, 1.6vh, 16px);
   font-weight: 700;
   cursor: pointer;
-  background: #333;
-  color: #ccc;
+  background: var(--border);
+  color: var(--text-secondary);
 }
 
 .btn-setup:active {
-  background: #555;
+  background: var(--border-muted);
 }
 
 .btn-setup.primary {
   background: #22c55e;
-  color: #0d0d0d;
+  color: #000;
 }
 
 .btn-setup.danger {
@@ -464,7 +497,7 @@ html, body {
   border: none;
   border-radius: 16px;
   background: #22c55e;
-  color: #0d0d0d;
+  color: #000;
   font-size: clamp(20px, 3.5vh, 36px);
   font-weight: 800;
   cursor: pointer;
@@ -485,7 +518,7 @@ html, body {
 }
 
 .import-row input[type="file"] {
-  color: #999;
+  color: var(--text-muted);
   font-size: clamp(12px, 1.6vh, 15px);
 }
 
@@ -495,7 +528,7 @@ html, body {
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: rgba(0,0,0,0.92);
+  background: var(--overlay-bg);
   flex-direction: column;
   align-items: center;
   padding: 3vh 3vw;
@@ -530,8 +563,8 @@ html, body {
   padding: 2vh 1vw;
   border: none;
   border-radius: 10px;
-  background: #2a2a2a;
-  color: #e8e8e8;
+  background: var(--bg-element);
+  color: var(--text-primary);
   font-size: clamp(14px, 2.2vh, 20px);
   font-weight: 700;
   cursor: pointer;
@@ -541,7 +574,7 @@ html, body {
 
 .overlay-grid button:active {
   background: #d4a017;
-  color: #0d0d0d;
+  color: #000;
 }
 
 .overlay-grid .player-num {
@@ -549,7 +582,7 @@ html, body {
   min-width: 1.8em;
   padding: 0.15em 0.35em;
   border-radius: 4px;
-  background: #444;
+  background: var(--border-light);
   color: #d4a017;
   font-size: 0.8em;
   font-weight: 800;
@@ -565,26 +598,26 @@ html, body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #777;
+  color: var(--text-faint);
   padding: 0.3vh 0.5vw;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border);
 }
 
 .btn-overlay-cancel {
   margin-top: 2vh;
   padding: 1.8vh 6vw;
-  border: 2px solid #666;
+  border: 2px solid var(--text-faint);
   border-radius: 10px;
   background: transparent;
-  color: #999;
+  color: var(--text-muted);
   font-size: clamp(16px, 2.5vh, 22px);
   font-weight: 700;
   cursor: pointer;
 }
 
 .btn-overlay-cancel:active {
-  background: #333;
-  color: #ccc;
+  background: var(--border);
+  color: var(--text-secondary);
 }
 
 /* ── CARD BUTTON (bottom bar) ── */
@@ -621,10 +654,10 @@ html, body {
 
 .card-toggle-btn {
   padding: 1.2vh 2.5vw;
-  border: 2px solid #444;
+  border: 2px solid var(--border-light);
   border-radius: 10px;
-  background: #1a1a1a;
-  color: #888;
+  background: var(--bg-surface);
+  color: var(--text-dim);
   font-size: clamp(13px, 1.9vh, 18px);
   font-weight: 700;
   cursor: pointer;
@@ -633,8 +666,8 @@ html, body {
 }
 
 .card-toggle-btn.active {
-  background: #2a2a2a;
-  color: #e8e8e8;
+  background: var(--bg-element);
+  color: var(--text-primary);
   border-color: #d4a017;
 }
 
@@ -669,7 +702,7 @@ html, body {
 }
 
 .scorers li.scorer-card {
-  color: #aaa;
+  color: var(--text-muted);
 }
 
 /* ── RIGORI PANEL ── */
@@ -711,7 +744,7 @@ html, body {
 .rigori-score .r-team-name {
   font-size: clamp(14px, 2.2vh, 22px);
   font-weight: 700;
-  color: #ccc;
+  color: var(--text-secondary);
   text-transform: uppercase;
   margin-bottom: 0.5vh;
 }
@@ -728,7 +761,7 @@ html, body {
 .rigori-score .r-vs {
   font-size: clamp(20px, 4vh, 40px);
   font-weight: 800;
-  color: #555;
+  color: var(--border-muted);
 }
 
 .rigori-sequence {
@@ -750,7 +783,7 @@ html, body {
 
 .rigori-sequence .r-kick-num {
   font-size: clamp(11px, 1.4vh, 14px);
-  color: #888;
+  color: var(--text-dim);
   font-weight: 700;
 }
 
@@ -766,10 +799,10 @@ html, body {
 }
 
 .r-kick-result.gol-home { background: var(--color-home-bg); color: var(--color-home); }
-.r-kick-result.err-home { background: #2a2a2a; color: #888; }
+.r-kick-result.err-home { background: var(--bg-element); color: var(--text-dim); }
 .r-kick-result.gol-away { background: var(--color-away-bg); color: var(--color-away); }
-.r-kick-result.err-away { background: #2a2a2a; color: #888; }
-.r-kick-result.pending { background: #1a1a1a; border: 1px dashed #444; color: transparent; }
+.r-kick-result.err-away { background: var(--bg-element); color: var(--text-dim); }
+.r-kick-result.pending { background: var(--bg-surface); border: 1px dashed var(--border-light); color: transparent; }
 
 .rigori-buttons {
   display: flex;
@@ -780,7 +813,7 @@ html, body {
 .rigori-buttons .r-label {
   font-size: clamp(13px, 2vh, 18px);
   font-weight: 700;
-  color: #999;
+  color: var(--text-muted);
   min-width: 10vw;
   text-align: center;
   text-transform: uppercase;
@@ -801,22 +834,22 @@ html, body {
   filter: brightness(0.8);
 }
 
-.btn-rigore.gol { background: #22c55e; color: #0d0d0d; }
+.btn-rigore.gol { background: #22c55e; color: #000; }
 .btn-rigore.errore { background: #ef4444; color: #fff; }
 
 .btn-rigore-undo {
   padding: 1vh 2vw;
-  border: 2px solid #444;
+  border: 2px solid var(--border-light);
   border-radius: 8px;
   background: transparent;
-  color: #888;
+  color: var(--text-dim);
   font-size: clamp(12px, 1.6vh, 16px);
   font-weight: 600;
   cursor: pointer;
 }
 
 .btn-rigore-undo:active {
-  background: #333;
+  background: var(--border);
 }
 
 .rigori-winner {
@@ -865,7 +898,7 @@ html, body {
 .summary-team-name {
   font-size: clamp(14px, 2vh, 20px);
   font-weight: 700;
-  color: #ccc;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -882,13 +915,13 @@ html, body {
 
 .summary-vs {
   font-size: clamp(24px, 6vh, 60px);
-  color: #666;
+  color: var(--text-faint);
   font-weight: 800;
 }
 
 .summary-rigori-score {
   font-size: clamp(13px, 1.9vh, 17px);
-  color: #aaa;
+  color: var(--text-muted);
   font-style: italic;
 }
 
@@ -917,14 +950,14 @@ html, body {
   color: #d4a017;
   text-align: center;
   padding: 0.6vh 0;
-  border-top: 1px solid #333;
-  border-bottom: 1px solid #333;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   margin-bottom: 0.6vh;
 }
 
 .summary-phase-empty {
   text-align: center;
-  color: #555;
+  color: var(--border-muted);
   font-style: italic;
   font-size: clamp(11px, 1.6vh, 14px);
   padding: 0.4vh 0;
@@ -950,13 +983,13 @@ html, body {
 .summary-team-dot.away { background: var(--color-away); }
 
 .summary-minute {
-  color: #999;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
 .summary-name {
-  color: #e8e8e8;
+  color: var(--text-primary);
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -967,7 +1000,7 @@ html, body {
   font-size: 0.85em;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #888;
+  color: var(--text-dim);
   display: inline-flex;
   align-items: center;
   gap: 0.35em;
@@ -1003,7 +1036,7 @@ html, body {
 }
 
 .summary-rigori-row .r-num {
-  color: #666;
+  color: var(--text-faint);
   text-align: center;
   font-size: 0.85em;
 }
@@ -1017,14 +1050,14 @@ html, body {
 .summary-rigori-row .r-outcome.away { text-align: left; }
 .summary-rigori-row .r-outcome.gol { color: #22c55e; }
 .summary-rigori-row .r-outcome.err { color: #ef4444; }
-.summary-rigori-row .r-outcome.pending { color: #444; }
+.summary-rigori-row .r-outcome.pending { color: var(--border-light); }
 
 .btn-new-match-summary {
   padding: 1.8vh 6vw;
   border: none;
   border-radius: 12px;
   background: #d4a017;
-  color: #0d0d0d;
+  color: #000;
   font-size: clamp(16px, 2.5vh, 22px);
   font-weight: 800;
   cursor: pointer;
@@ -1085,7 +1118,7 @@ html, body {
   position: fixed;
   inset: 0;
   z-index: 300;
-  background: rgba(0,0,0,0.92);
+  background: var(--overlay-bg);
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -1105,10 +1138,10 @@ html, body {
 .time-edit-inputs input {
   width: clamp(80px, 14vw, 140px);
   padding: 2vh 1vw;
-  border: 2px solid #444;
+  border: 2px solid var(--border-light);
   border-radius: 12px;
-  background: #1a1a1a;
-  color: #e8e8e8;
+  background: var(--bg-surface);
+  color: var(--text-primary);
   font-size: clamp(36px, 8vh, 72px);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
@@ -1125,7 +1158,7 @@ html, body {
 .time-edit-inputs .time-edit-sep {
   font-size: clamp(36px, 8vh, 72px);
   font-weight: 800;
-  color: #666;
+  color: var(--text-faint);
 }
 
 .time-edit-actions {
@@ -1146,13 +1179,13 @@ html, body {
 
 .time-edit-actions .btn-time-confirm {
   background: #22c55e;
-  color: #0d0d0d;
+  color: #000;
 }
 
 .time-edit-actions .btn-time-cancel {
   background: transparent;
-  border: 2px solid #666;
-  color: #999;
+  border: 2px solid var(--text-faint);
+  color: var(--text-muted);
 }
 
 .time-edit-actions button:active {
@@ -1169,7 +1202,7 @@ html, body {
   padding: 3vh 4vw 4vh;
   gap: 2vh;
   overflow: hidden;
-  background: #0d0d0d;
+  background: var(--bg-body);
   z-index: 50;
 }
 
@@ -1189,7 +1222,7 @@ html, body {
   flex: 1 1 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  background: #1a1a1a;
+  background: var(--bg-surface);
   border-radius: 12px;
   padding: 1vh 1vw;
   min-height: 0;
@@ -1197,7 +1230,7 @@ html, body {
 
 .storico-empty {
   text-align: center;
-  color: #666;
+  color: var(--text-faint);
   font-style: italic;
   padding: 4vh 0;
   font-size: clamp(14px, 2vh, 18px);
@@ -1209,7 +1242,7 @@ html, body {
   align-items: center;
   gap: 1.5vw;
   padding: 1.5vh 1.5vw;
-  border-bottom: 1px solid #2a2a2a;
+  border-bottom: 1px solid var(--bg-element);
   cursor: pointer;
 }
 
@@ -1218,12 +1251,12 @@ html, body {
 }
 
 .storico-row:active {
-  background: #222;
+  background: var(--bg-inset);
 }
 
 .storico-date {
   font-variant-numeric: tabular-nums;
-  color: #888;
+  color: var(--text-dim);
   font-size: clamp(12px, 1.7vh, 16px);
   white-space: nowrap;
 }
@@ -1233,7 +1266,7 @@ html, body {
   align-items: baseline;
   gap: 0.6em;
   font-size: clamp(14px, 2vh, 19px);
-  color: #e8e8e8;
+  color: var(--text-primary);
   flex-wrap: wrap;
 }
 
@@ -1241,7 +1274,7 @@ html, body {
 .storico-team-away { color: var(--color-away); font-weight: 700; }
 
 .storico-score-numbers {
-  color: #e8e8e8;
+  color: var(--text-primary);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   padding: 0 0.3em;
@@ -1249,7 +1282,7 @@ html, body {
 
 .storico-rigori-suffix {
   font-size: 0.8em;
-  color: #aaa;
+  color: var(--text-muted);
   font-style: italic;
   margin-left: 0.3em;
 }
@@ -1257,10 +1290,10 @@ html, body {
 .btn-storico-delete {
   width: clamp(36px, 5vh, 48px);
   height: clamp(36px, 5vh, 48px);
-  border: 1px solid #444;
+  border: 1px solid var(--border-light);
   border-radius: 8px;
   background: transparent;
-  color: #888;
+  color: var(--text-dim);
   font-size: clamp(16px, 2.2vh, 20px);
   cursor: pointer;
   flex-shrink: 0;
@@ -1284,8 +1317,8 @@ html, body {
   bottom: 4vh;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(40,40,40,0.95);
-  color: #e8e8e8;
+  background: var(--toast-bg);
+  color: var(--text-primary);
   padding: 1.5vh 4vw;
   border-radius: 10px;
   font-size: clamp(14px, 2vh, 18px);
@@ -1294,7 +1327,7 @@ html, body {
   opacity: 0;
   transition: opacity 0.25s;
   pointer-events: none;
-  border: 1px solid #555;
+  border: 1px solid var(--border-muted);
 }
 
 .toast.show { opacity: 1; }
@@ -1306,6 +1339,31 @@ html, body {
 }
 
 #btn-storico-setup.hidden { display: none; }
+
+.storico-title {
+  font-size: clamp(18px, 3vh, 28px);
+  font-weight: 800;
+  color: #d4a017;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ── Theme toggle ── */
+.btn-theme-toggle {
+  padding: 1vh 2vw;
+  border: none;
+  border-radius: 8px;
+  background: var(--bg-element);
+  color: var(--text-muted);
+  font-size: clamp(12px, 1.6vh, 16px);
+  font-weight: 700;
+  cursor: pointer;
+  align-self: center;
+}
+
+.btn-theme-toggle:active {
+  background: var(--border-light);
+}
 </style>
 </head>
 <body>
@@ -1370,12 +1428,13 @@ html, body {
 
   <button class="btn-start" id="btn-start">INIZIA PARTITA</button>
   <button class="btn-setup" id="btn-storico-setup">Storico partite</button>
+  <button class="btn-theme-toggle" id="btn-theme-setup">Tema: scuro</button>
 </div>
 
 <!-- ══ STORICO SCREEN ══ -->
 <div id="screen-storico" class="screen-storico">
   <div class="storico-header">
-    <div class="setup-title" style="text-align:left;">STORICO PARTITE</div>
+    <div class="storico-title">STORICO PARTITE</div>
     <button class="btn-setup danger" id="btn-clear-storico">Svuota storico</button>
   </div>
   <div id="storico-list" class="storico-list"></div>
@@ -1403,6 +1462,7 @@ html, body {
         <button id="btn-settings" class="btn-settings">⚙</button>
         <div id="settings-menu" class="settings-menu">
           <button id="btn-prev-phase">◂ Fase precedente</button>
+          <button id="btn-theme-match">Tema: scuro</button>
           <button id="btn-new-match">Nuova partita</button>
         </div>
       </div>
@@ -3478,6 +3538,39 @@ btnCard.addEventListener('pointerdown', function(e) { e.preventDefault(); openCa
 document.addEventListener('pointerdown', function(e) {
   if (!e.target.closest('.settings-wrap')) closeSettings();
 });
+
+// ═══════════════════════════════════════════
+// THEME TOGGLE
+// ═══════════════════════════════════════════
+var THEME_KEY = 'subbuteo:theme';
+var btnThemeSetup = document.getElementById('btn-theme-setup');
+var btnThemeMatch = document.getElementById('btn-theme-match');
+
+function applyTheme(theme) {
+  if (theme === 'light') {
+    document.body.classList.add('light-theme');
+  } else {
+    document.body.classList.remove('light-theme');
+  }
+  var label = theme === 'light' ? 'Tema: chiaro' : 'Tema: scuro';
+  btnThemeSetup.textContent = label;
+  btnThemeMatch.textContent = label;
+}
+
+function toggleTheme() {
+  var current = document.body.classList.contains('light-theme') ? 'light' : 'dark';
+  var next = current === 'light' ? 'dark' : 'light';
+  try { localStorage.setItem(THEME_KEY, next); } catch(e) {}
+  applyTheme(next);
+}
+
+// Restore saved theme
+var savedTheme = null;
+try { savedTheme = localStorage.getItem(THEME_KEY); } catch(e) {}
+applyTheme(savedTheme || 'dark');
+
+btnThemeSetup.addEventListener('pointerdown', function(e) { e.preventDefault(); toggleTheme(); });
+btnThemeMatch.addEventListener('pointerdown', function(e) { e.preventDefault(); toggleTheme(); closeSettings(); });
 
 // ═══════════════════════════════════════════
 // INIT — recover or show setup
