@@ -1039,6 +1039,86 @@ html, body {
   height: 100%;
 }
 
+/* ── TIME EDIT OVERLAY ── */
+.time-edit-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0,0,0,0.92);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3vh;
+}
+
+.time-edit-overlay.open {
+  display: flex;
+}
+
+.time-edit-inputs {
+  display: flex;
+  align-items: center;
+  gap: 1.5vw;
+}
+
+.time-edit-inputs input {
+  width: clamp(80px, 14vw, 140px);
+  padding: 2vh 1vw;
+  border: 2px solid #444;
+  border-radius: 12px;
+  background: #1a1a1a;
+  color: #e8e8e8;
+  font-size: clamp(36px, 8vh, 72px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.time-edit-inputs input::-webkit-outer-spin-button,
+.time-edit-inputs input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.time-edit-inputs .time-edit-sep {
+  font-size: clamp(36px, 8vh, 72px);
+  font-weight: 800;
+  color: #666;
+}
+
+.time-edit-actions {
+  display: flex;
+  gap: 2vw;
+}
+
+.time-edit-actions button {
+  padding: 2vh 5vw;
+  border: none;
+  border-radius: 12px;
+  font-size: clamp(16px, 2.5vh, 22px);
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.time-edit-actions .btn-time-confirm {
+  background: #22c55e;
+  color: #0d0d0d;
+}
+
+.time-edit-actions .btn-time-cancel {
+  background: transparent;
+  border: 2px solid #666;
+  color: #999;
+}
+
+.time-edit-actions button:active {
+  filter: brightness(0.85);
+}
+
 /* ── STORICO SCREEN ── */
 .screen-storico {
   display: none;
@@ -1376,6 +1456,20 @@ html, body {
   <div id="overlay-title" class="overlay-title"></div>
   <div id="overlay-grid" class="overlay-grid"></div>
   <button id="overlay-cancel" class="btn-overlay-cancel">ANNULLA</button>
+</div>
+
+<!-- ══ TIME EDIT OVERLAY ══ -->
+<div id="time-edit-overlay" class="time-edit-overlay">
+  <div class="overlay-title">MODIFICA TEMPO</div>
+  <div class="time-edit-inputs">
+    <input type="number" id="time-edit-min" min="0" max="99" placeholder="MM">
+    <span class="time-edit-sep">:</span>
+    <input type="number" id="time-edit-sec" min="0" max="59" placeholder="SS">
+  </div>
+  <div class="time-edit-actions">
+    <button class="btn-time-confirm" id="btn-time-confirm">Conferma</button>
+    <button class="btn-time-cancel" id="btn-time-cancel">Annulla</button>
+  </div>
 </div>
 
 <!-- ══ TOAST ══ -->
@@ -2066,6 +2160,61 @@ function pause() {
 function togglePlayPause() {
   if (timer.running) pause(); else play();
 }
+
+// ── Time edit (tap timer when paused) ──
+var timeEditOverlay = document.getElementById('time-edit-overlay');
+var timeEditMin = document.getElementById('time-edit-min');
+var timeEditSec = document.getElementById('time-edit-sec');
+
+function openTimeEdit() {
+  // Solo se in pausa e in una fase con timer
+  if (timer.running) return;
+  if (fase === 'RIGORI' || fase === 'FINITA') return;
+  var totalSec = Math.floor(timer.elapsedMs / 1000);
+  timeEditMin.value = Math.floor(totalSec / 60);
+  timeEditSec.value = totalSec % 60;
+  timeEditOverlay.classList.add('open');
+  timeEditMin.focus();
+  timeEditMin.select();
+}
+
+function closeTimeEdit() {
+  timeEditOverlay.classList.remove('open');
+}
+
+function confirmTimeEdit() {
+  var m = parseInt(timeEditMin.value) || 0;
+  var s = parseInt(timeEditSec.value) || 0;
+  if (m < 0) m = 0;
+  if (s < 0) s = 0;
+  if (s > 59) s = 59;
+  timer.elapsedMs = (m * 60 + s) * 1000;
+  beeped = timer.durataFaseMs !== null && timer.elapsedMs >= timer.durataFaseMs;
+  updateDisplay();
+  saveMatch();
+  closeTimeEdit();
+}
+
+timerDisplay.addEventListener('pointerdown', function(e) {
+  if (!timer.running && fase !== 'RIGORI' && fase !== 'FINITA') {
+    e.preventDefault();
+    openTimeEdit();
+  }
+});
+
+document.getElementById('btn-time-confirm').addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  confirmTimeEdit();
+});
+
+document.getElementById('btn-time-cancel').addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  closeTimeEdit();
+});
+
+// Conferma anche con Enter dentro i campi
+timeEditMin.addEventListener('keydown', function(e) { if (e.key === 'Enter') confirmTimeEdit(); });
+timeEditSec.addEventListener('keydown', function(e) { if (e.key === 'Enter') confirmTimeEdit(); });
 
 // ── Phase badges ──
 var rigoriPanel = document.getElementById('rigori-panel');

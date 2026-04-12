@@ -22,9 +22,8 @@
 
 - ~~**Conferma "Fase successiva"**~~: ✅ `confirm()` nativo prima di
   avanzare fase, per evitare tap accidentali.
-- **Modifica tempo al tap**: toccando il timer (in pausa) si apre un
-  overlay con input MM:SS per impostare manualmente il tempo trascorso.
-  Utile per correzioni o per riprendere dopo un'interruzione.
+- ~~**Modifica tempo al tap**~~: ✅ tap sul timer in pausa apre overlay
+  MM:SS per impostare il tempo trascorso. Conferma/Annulla + Enter.
 - **Ordinamento giocatori per ruolo**: nella griglia dell'overlay gol,
   raggruppare visivamente P/D/C/A con separatori o colori diversi.
 - **Rose predefinite (catalogo)**: set di rose classiche precaricate
