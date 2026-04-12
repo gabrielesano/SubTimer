@@ -29,8 +29,10 @@
   Funzione condivisa `populatePlayerGrid`.
 - **Rose predefinite (catalogo)**: set di rose classiche precaricate
   selezionabili da un catalogo nella schermata setup.
-- **Numeri di maglia**: numero opzionale per giocatore, visibile
-  nell'overlay e nel tabellino.
+- ~~**Numeri di maglia**~~: ✅ parsing formato `"10 Nome (Ruolo)"`.
+  Badge numerico nell'overlay, numero nel tabellino live, summary e
+  export. Retrocompatibile: rose senza numeri funzionano come prima.
+  I file JSON delle rose vanno aggiornati manualmente con dati verificati.
 - **Tema colori per squadra**: colore primario associato a ogni squadra
   nella rosa, applicato a punteggio e bottoni gol.
 - **Icona app personalizzata**: sostituire il placeholder con un'icona

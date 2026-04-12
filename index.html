@@ -530,6 +530,21 @@ html, body {
   color: #0d0d0d;
 }
 
+.overlay-grid .player-num {
+  display: inline-block;
+  min-width: 1.8em;
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+  background: #444;
+  color: #d4a017;
+  font-size: 0.8em;
+  font-weight: 800;
+  text-align: center;
+  margin-right: 0.4em;
+  font-variant-numeric: tabular-nums;
+  vertical-align: baseline;
+}
+
 .overlay-role-label {
   grid-column: 1 / -1;
   font-size: clamp(11px, 1.5vh, 14px);
@@ -2446,14 +2461,16 @@ function updateScoreboard() {
     var li = document.createElement('li');
     var phaseLabel = PHASE_SHORT[ev.data.fase] || '';
     var timeStr = ev.data.minutoGioco + "'" + (phaseLabel ? ' ' + phaseLabel : '');
+    var pg = parsePlayer(ev.data.giocatore || '');
+    var displayName = pg.numero ? pg.numero + ' ' + pg.nome : (pg.nome || 'Gol');
     if (ev.kind === 'goal') {
-      li.textContent = (ev.data.giocatore || 'Gol') + ' — ' + timeStr;
+      li.textContent = displayName + ' — ' + timeStr;
       li.className = 'scorer-goal';
     } else {
       var mark = document.createElement('span');
       mark.className = 'card-mark ' + (ev.kind === 'giallo' ? 'yellow' : 'red');
       li.appendChild(mark);
-      li.appendChild(document.createTextNode(ev.data.giocatore + ' — ' + timeStr));
+      li.appendChild(document.createTextNode(displayName + ' — ' + timeStr));
       li.className = 'scorer-card';
     }
     if (ev.data.squadra === 'casa') scorersHome.appendChild(li);
@@ -2549,9 +2566,10 @@ function buildPhaseSection(phaseKey) {
     minute.textContent = ev.data.minutoGioco + "'";
     row.appendChild(minute);
 
+    var pgs = parsePlayer(ev.data.giocatore || '');
     var name = document.createElement('span');
     name.className = 'summary-name';
-    name.textContent = ev.data.giocatore || '—';
+    name.textContent = pgs.numero ? pgs.numero + ' ' + pgs.nome : (pgs.nome || '—');
     row.appendChild(name);
 
     var typeEl = document.createElement('span');
@@ -2991,7 +3009,8 @@ function buildSummaryText() {
     for (var k = 0; k < evs.length; k++) {
       var ev = evs[k];
       var tag = ev.data.squadra === 'casa' ? tagCasa : tagAway;
-      var nomeGioc = ev.data.giocatore || '—';
+      var pge = parsePlayer(ev.data.giocatore || '');
+      var nomeGioc = pge.numero ? '#' + pge.numero + ' ' + pge.nome : (pge.nome || '—');
       var prefix = '';
       if (ev.kind === 'giallo') prefix = '🟨 ';
       else if (ev.kind === 'rosso') prefix = '🟥 ';
@@ -3058,6 +3077,15 @@ document.getElementById('btn-export-summary').addEventListener('pointerdown', fu
   exportSummary();
 });
 
+// ── Parsing numeri di maglia ──
+// "10 Gigi Riva (A)" → { numero: "10", nome: "Gigi Riva (A)" }
+// "Gigi Riva (A)"    → { numero: null, nome: "Gigi Riva (A)" }
+function parsePlayer(str) {
+  var m = str.match(/^(\d+)\s+(.+)$/);
+  if (m) return { numero: m[1], nome: m[2] };
+  return { numero: null, nome: str };
+}
+
 // ── Player grid grouped by role (A→C→D→P, then ALTRI) ──
 var ROLE_ORDER = [
   { tag: '(A)', label: 'Attaccanti' },
@@ -3104,7 +3132,16 @@ function populatePlayerGrid(grid, rosa, onClick) {
     }
     for (var p = 0; p < players.length; p++) {
       var btn = document.createElement('button');
-      btn.textContent = players[p];
+      var parsed = parsePlayer(players[p]);
+      if (parsed.numero) {
+        var numSpan = document.createElement('span');
+        numSpan.className = 'player-num';
+        numSpan.textContent = parsed.numero;
+        btn.appendChild(numSpan);
+        btn.appendChild(document.createTextNode(parsed.nome));
+      } else {
+        btn.textContent = players[p];
+      }
       (function(giocatore) {
         btn.addEventListener('click', function() { onClick(giocatore); });
       })(players[p]);
