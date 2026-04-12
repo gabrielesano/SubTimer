@@ -24,8 +24,9 @@
   avanzare fase, per evitare tap accidentali.
 - ~~**Modifica tempo al tap**~~: ✅ tap sul timer in pausa apre overlay
   MM:SS per impostare il tempo trascorso. Conferma/Annulla + Enter.
-- **Ordinamento giocatori per ruolo**: nella griglia dell'overlay gol,
-  raggruppare visivamente P/D/C/A con separatori o colori diversi.
+- ~~**Ordinamento giocatori per ruolo**~~: ✅ griglia overlay gol e
+  cartellini raggruppata per ruolo (A→C→D→P, poi Altri) con separatori.
+  Funzione condivisa `populatePlayerGrid`.
 - **Rose predefinite (catalogo)**: set di rose classiche precaricate
   selezionabili da un catalogo nella schermata setup.
 - **Numeri di maglia**: numero opzionale per giocatore, visibile

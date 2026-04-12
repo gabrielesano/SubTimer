@@ -530,6 +530,17 @@ html, body {
   color: #0d0d0d;
 }
 
+.overlay-role-label {
+  grid-column: 1 / -1;
+  font-size: clamp(11px, 1.5vh, 14px);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #777;
+  padding: 0.3vh 0.5vw;
+  border-bottom: 1px solid #333;
+}
+
 .btn-overlay-cancel {
   margin-top: 2vh;
   padding: 1.8vh 6vw;
@@ -3047,6 +3058,66 @@ document.getElementById('btn-export-summary').addEventListener('pointerdown', fu
   exportSummary();
 });
 
+// ── Player grid grouped by role (A→C→D→P, then ALTRI) ──
+var ROLE_ORDER = [
+  { tag: '(A)', label: 'Attaccanti' },
+  { tag: '(C)', label: 'Centrocampisti' },
+  { tag: '(D)', label: 'Difensori' },
+  { tag: '(P)', label: 'Portieri' }
+];
+
+function populatePlayerGrid(grid, rosa, onClick) {
+  grid.innerHTML = '';
+  // Raggruppa giocatori per ruolo
+  var groups = {};
+  for (var r = 0; r < ROLE_ORDER.length; r++) {
+    groups[ROLE_ORDER[r].tag] = [];
+  }
+  groups['_other'] = [];
+
+  for (var i = 0; i < rosa.length; i++) {
+    var g = rosa[i];
+    var placed = false;
+    for (var r2 = 0; r2 < ROLE_ORDER.length; r2++) {
+      if (g.indexOf(ROLE_ORDER[r2].tag) !== -1) {
+        groups[ROLE_ORDER[r2].tag].push(g);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) groups['_other'].push(g);
+  }
+
+  // Controlla se esiste almeno un ruolo — se nessuno ha tag, skip separatori
+  var hasAnyRole = false;
+  for (var r3 = 0; r3 < ROLE_ORDER.length; r3++) {
+    if (groups[ROLE_ORDER[r3].tag].length > 0) { hasAnyRole = true; break; }
+  }
+
+  function appendGroup(label, players) {
+    if (players.length === 0) return;
+    if (hasAnyRole) {
+      var lbl = document.createElement('div');
+      lbl.className = 'overlay-role-label';
+      lbl.textContent = label;
+      grid.appendChild(lbl);
+    }
+    for (var p = 0; p < players.length; p++) {
+      var btn = document.createElement('button');
+      btn.textContent = players[p];
+      (function(giocatore) {
+        btn.addEventListener('click', function() { onClick(giocatore); });
+      })(players[p]);
+      grid.appendChild(btn);
+    }
+  }
+
+  for (var r4 = 0; r4 < ROLE_ORDER.length; r4++) {
+    appendGroup(ROLE_ORDER[r4].label, groups[ROLE_ORDER[r4].tag]);
+  }
+  appendGroup('Altri', groups['_other']);
+}
+
 // ── Goal overlay ──
 var goalOverlay = document.getElementById('goal-overlay');
 var overlayTitle = document.getElementById('overlay-title');
@@ -3062,27 +3133,21 @@ function openGoalOverlay(squadra) {
 
   pendingGoal = { squadra: squadra, minutoGioco: minuto, fase: fase };
   overlayTitle.textContent = 'GOL ' + nome + ' — ' + minuto + "'";
-  overlayGrid.innerHTML = '';
 
-  rosa.forEach(function(giocatore) {
-    var btn = document.createElement('button');
-    btn.textContent = giocatore;
-    btn.addEventListener('click', function(e) {
-      marcatori.push({
-        squadra: pendingGoal.squadra,
-        giocatore: giocatore,
-        minutoGioco: pendingGoal.minutoGioco,
-        fase: pendingGoal.fase
-      });
-      actionOrder.push('goal');
-      undoStack = [];
-      pendingGoal = null;
-      goalOverlay.classList.remove('open');
-      updateScoreboard();
-      playCrowdCheer();
-      saveMatch();
+  populatePlayerGrid(overlayGrid, rosa, function(giocatore) {
+    marcatori.push({
+      squadra: pendingGoal.squadra,
+      giocatore: giocatore,
+      minutoGioco: pendingGoal.minutoGioco,
+      fase: pendingGoal.fase
     });
-    overlayGrid.appendChild(btn);
+    actionOrder.push('goal');
+    undoStack = [];
+    pendingGoal = null;
+    goalOverlay.classList.remove('open');
+    updateScoreboard();
+    playCrowdCheer();
+    saveMatch();
   });
 
   goalOverlay.classList.add('open');
@@ -3110,27 +3175,21 @@ var pendingCard = null; // { squadra, tipo, minutoGioco, fase }
 function renderCardPlayerGrid() {
   if (!pendingCard) return;
   var rosa = pendingCard.squadra === 'casa' ? squadre.casa.rosa : squadre.trasferta.rosa;
-  cardOverlayGrid.innerHTML = '';
-  rosa.forEach(function(giocatore) {
-    var btn = document.createElement('button');
-    btn.textContent = giocatore;
-    btn.addEventListener('click', function() {
-      cartellini.push({
-        squadra: pendingCard.squadra,
-        giocatore: giocatore,
-        tipo: pendingCard.tipo,
-        minutoGioco: pendingCard.minutoGioco,
-        fase: pendingCard.fase
-      });
-      actionOrder.push('card');
-      undoStack = [];
-      pendingCard = null;
-      cardOverlay.classList.remove('open');
-      updateScoreboard();
-      playWhistle('short');
-      saveMatch();
+  populatePlayerGrid(cardOverlayGrid, rosa, function(giocatore) {
+    cartellini.push({
+      squadra: pendingCard.squadra,
+      giocatore: giocatore,
+      tipo: pendingCard.tipo,
+      minutoGioco: pendingCard.minutoGioco,
+      fase: pendingCard.fase
     });
-    cardOverlayGrid.appendChild(btn);
+    actionOrder.push('card');
+    undoStack = [];
+    pendingCard = null;
+    cardOverlay.classList.remove('open');
+    updateScoreboard();
+    playWhistle('short');
+    saveMatch();
   });
 }
 
