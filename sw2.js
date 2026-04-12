@@ -1,4 +1,4 @@
-var CACHE_NAME = 'subtimer-v14';
+var CACHE_NAME = 'subtimer-v15';
 var ASSETS = [
   '/',
   '/index.html',
