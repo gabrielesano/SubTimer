@@ -996,6 +996,196 @@ html, body {
 .btn-new-match-summary:active {
   filter: brightness(0.85);
 }
+
+.summary-actions {
+  display: flex;
+  gap: 2vw;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.btn-export-summary {
+  padding: 1.8vh 4vw;
+  border: 2px solid #4a7c59;
+  border-radius: 12px;
+  background: #1e3a2a;
+  color: #86efac;
+  font-size: clamp(14px, 2.2vh, 20px);
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.btn-export-summary:active {
+  background: #2a4a3a;
+}
+
+/* Hide "Nuova partita" button in read-only storico view */
+.summary-panel.readonly #btn-new-match-summary { display: none; }
+.summary-panel:not(.readonly) #btn-back-storico-summary { display: none; }
+
+/* Storico read-only view: full-screen summary panel */
+.screen-match.storico-view.active {
+  display: block;
+}
+.screen-match.storico-view .top-bar,
+.screen-match.storico-view .bottom-bar,
+.screen-match.storico-view .center {
+  display: none;
+}
+.screen-match.storico-view .summary-panel.active {
+  height: 100%;
+}
+
+/* ── STORICO SCREEN ── */
+.screen-storico {
+  display: none;
+  position: fixed; top: 0; left: 0;
+  height: 100%; height: 100dvh;
+  width: 100%;
+  flex-direction: column;
+  padding: 3vh 4vw 4vh;
+  gap: 2vh;
+  overflow: hidden;
+  background: #0d0d0d;
+  z-index: 50;
+}
+
+.screen-storico.active {
+  display: flex;
+}
+
+.storico-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2vw;
+  flex-shrink: 0;
+}
+
+.storico-list {
+  flex: 1 1 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #1a1a1a;
+  border-radius: 12px;
+  padding: 1vh 1vw;
+  min-height: 0;
+}
+
+.storico-empty {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  padding: 4vh 0;
+  font-size: clamp(14px, 2vh, 18px);
+}
+
+.storico-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1.5vw;
+  padding: 1.5vh 1.5vw;
+  border-bottom: 1px solid #2a2a2a;
+  cursor: pointer;
+}
+
+.storico-row:last-child {
+  border-bottom: none;
+}
+
+.storico-row:active {
+  background: #222;
+}
+
+.storico-date {
+  font-variant-numeric: tabular-nums;
+  color: #888;
+  font-size: clamp(12px, 1.7vh, 16px);
+  white-space: nowrap;
+}
+
+.storico-match {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  font-size: clamp(14px, 2vh, 19px);
+  color: #e8e8e8;
+  flex-wrap: wrap;
+}
+
+.storico-team-home { color: #60a5fa; font-weight: 700; }
+.storico-team-away { color: #f87171; font-weight: 700; }
+
+.storico-score-numbers {
+  color: #e8e8e8;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  padding: 0 0.3em;
+}
+
+.storico-rigori-suffix {
+  font-size: 0.8em;
+  color: #aaa;
+  font-style: italic;
+  margin-left: 0.3em;
+}
+
+.btn-storico-delete {
+  width: clamp(36px, 5vh, 48px);
+  height: clamp(36px, 5vh, 48px);
+  border: 1px solid #444;
+  border-radius: 8px;
+  background: transparent;
+  color: #888;
+  font-size: clamp(16px, 2.2vh, 20px);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.btn-storico-delete:active {
+  background: #3a1515;
+  border-color: #7f1d1d;
+  color: #f87171;
+}
+
+.storico-footer {
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 4vh;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(40,40,40,0.95);
+  color: #e8e8e8;
+  padding: 1.5vh 4vw;
+  border-radius: 10px;
+  font-size: clamp(14px, 2vh, 18px);
+  font-weight: 700;
+  z-index: 500;
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+  border: 1px solid #555;
+}
+
+.toast.show { opacity: 1; }
+
+/* ── Storico button in setup ── */
+#btn-storico-setup {
+  margin-top: 0.5vh;
+  align-self: center;
+}
+
+#btn-storico-setup.hidden { display: none; }
 </style>
 </head>
 <body>
@@ -1059,6 +1249,19 @@ html, body {
   </div>
 
   <button class="btn-start" id="btn-start">INIZIA PARTITA</button>
+  <button class="btn-setup" id="btn-storico-setup">Storico partite</button>
+</div>
+
+<!-- ══ STORICO SCREEN ══ -->
+<div id="screen-storico" class="screen-storico">
+  <div class="storico-header">
+    <div class="setup-title" style="text-align:left;">STORICO PARTITE</div>
+    <button class="btn-setup danger" id="btn-clear-storico">Svuota storico</button>
+  </div>
+  <div id="storico-list" class="storico-list"></div>
+  <div class="storico-footer">
+    <button class="btn-setup" id="btn-back-storico">◂ Indietro</button>
+  </div>
 </div>
 
 <!-- ══ MATCH SCREEN ══ -->
@@ -1150,7 +1353,11 @@ html, body {
     </div>
     <div id="summary-rigori-score" class="summary-rigori-score"></div>
     <div id="summary-content" class="summary-content"></div>
-    <button id="btn-new-match-summary" class="btn-new-match-summary">Nuova partita</button>
+    <div class="summary-actions">
+      <button id="btn-export-summary" class="btn-export-summary">Esporta</button>
+      <button id="btn-new-match-summary" class="btn-new-match-summary">Nuova partita</button>
+      <button id="btn-back-storico-summary" class="btn-new-match-summary">◂ Storico</button>
+    </div>
   </div>
 
   <!-- ── BOTTOM BAR ── -->
@@ -1170,6 +1377,9 @@ html, body {
   <div id="overlay-grid" class="overlay-grid"></div>
   <button id="overlay-cancel" class="btn-overlay-cancel">ANNULLA</button>
 </div>
+
+<!-- ══ TOAST ══ -->
+<div id="toast" class="toast"></div>
 
 <!-- ══ CARD OVERLAY ══ -->
 <div id="card-overlay" class="overlay">
@@ -1291,6 +1501,7 @@ function refreshSetup() {
     rosterSel.value = prevIdx;
   }
   loadRosterEditor();
+  if (typeof updateStoricoSetupButton === 'function') updateStoricoSetupButton();
 }
 
 function loadRosterEditor() {
@@ -1379,14 +1590,19 @@ function showSetup() {
   if (timer.running) pause();
   stopTick();
   clearMatch();
+  storicoSavedId = null;
   screenSetup.classList.add('active');
   screenMatch.classList.remove('active');
+  var ss = document.getElementById('screen-storico');
+  if (ss) ss.classList.remove('active');
   refreshSetup();
 }
 
 function showMatch() {
   screenSetup.classList.remove('active');
   screenMatch.classList.add('active');
+  var ss = document.getElementById('screen-storico');
+  if (ss) ss.classList.remove('active');
 }
 
 // ═══════════════════════════════════════════
@@ -1431,6 +1647,7 @@ btnStart.addEventListener('pointerdown', function(e) {
   actionOrder = [];
   rigori = [];
   undoStack = [];
+  storicoSavedId = null;
 
   // Update UI
   nameHome.textContent = squadre.casa.nome;
@@ -1478,6 +1695,7 @@ var actionOrder = []; // push order: 'goal'|'card' — serve per undo unificato
 var undoStack = []; // redo stack: [{ type: 'goal'|'card', event: {...} }]
 
 var MATCH_KEY = 'subbuteo:matchState';
+var storicoSavedId = null; // id dell'entry storico se la partita corrente è già stata salvata
 
 function saveMatch() {
   // freeze elapsedMs if running
@@ -1496,7 +1714,8 @@ function saveMatch() {
     cartellini: cartellini,
     actionOrder: actionOrder,
     rigori: rigori,
-    phaseDurations: PHASE_DURATIONS
+    phaseDurations: PHASE_DURATIONS,
+    storicoSavedId: storicoSavedId
   };
   localStorage.setItem(MATCH_KEY, JSON.stringify(state));
 }
@@ -1532,6 +1751,7 @@ function restoreMatch(data) {
   marcatori = data.marcatori || [];
   cartellini = data.cartellini || [];
   rigori = data.rigori || [];
+  storicoSavedId = data.storicoSavedId || null;
   // Backfill actionOrder se il salvataggio è precedente all'introduzione dei
   // cartellini: assume tutti i gol prima, poi i cartellini (ordine indicativo).
   if (Array.isArray(data.actionOrder)) {
@@ -1877,6 +2097,7 @@ function updatePhaseBadges() {
   var isFinita = fase === 'FINITA';
   rigoriPanel.classList.toggle('active', isRigori);
   summaryPanel.classList.toggle('active', isFinita);
+  if (isFinita) summaryPanel.classList.remove('readonly'); // live mode, non read-only
   matchCenter.style.display = (isRigori || isFinita) ? 'none' : '';
   matchBottom.style.display = (isRigori || isFinita) ? 'none' : '';
   if (isRigori) updateRigoriUI();
@@ -2108,17 +2329,32 @@ var PHASE_SHORT = {
   '2TS': '2°TS'
 };
 
+// Contesto di rendering del riepilogo: se null usa lo stato live della
+// partita; altrimenti è una snapshot dallo storico in sola lettura.
+var summaryCtx = null;
+
+function currentSummaryCtx() {
+  if (summaryCtx) return summaryCtx;
+  return {
+    squadre: squadre,
+    marcatori: marcatori,
+    cartellini: cartellini,
+    rigori: rigori
+  };
+}
+
 function buildPhaseSection(phaseKey) {
+  var ctx = currentSummaryCtx();
   var label = PHASE_LABELS[phaseKey];
   var events = [];
-  for (var i = 0; i < marcatori.length; i++) {
-    if (marcatori[i].fase === phaseKey) {
-      events.push({ kind: 'goal', data: marcatori[i] });
+  for (var i = 0; i < ctx.marcatori.length; i++) {
+    if (ctx.marcatori[i].fase === phaseKey) {
+      events.push({ kind: 'goal', data: ctx.marcatori[i] });
     }
   }
-  for (var j = 0; j < cartellini.length; j++) {
-    if (cartellini[j].fase === phaseKey) {
-      events.push({ kind: cartellini[j].tipo, data: cartellini[j] });
+  for (var j = 0; j < ctx.cartellini.length; j++) {
+    if (ctx.cartellini[j].fase === phaseKey) {
+      events.push({ kind: ctx.cartellini[j].tipo, data: ctx.cartellini[j] });
     }
   }
   events.sort(function(a, b) { return a.data.minutoGioco - b.data.minutoGioco; });
@@ -2184,7 +2420,9 @@ function buildPhaseSection(phaseKey) {
 }
 
 function buildRigoriSection() {
-  if (rigori.length === 0) return null;
+  var ctx = currentSummaryCtx();
+  var rigoriCtx = ctx.rigori || [];
+  if (rigoriCtx.length === 0) return null;
   var section = document.createElement('div');
   section.className = 'summary-phase';
 
@@ -2196,7 +2434,7 @@ function buildRigoriSection() {
   var rounds = document.createElement('div');
   rounds.className = 'summary-rigori-rounds';
 
-  var totalRounds = Math.ceil(rigori.length / 2);
+  var totalRounds = Math.ceil(rigoriCtx.length / 2);
   for (var r = 0; r < totalRounds; r++) {
     var row = document.createElement('div');
     row.className = 'summary-rigori-row';
@@ -2205,7 +2443,7 @@ function buildRigoriSection() {
     dotH.className = 'summary-team-dot home';
     row.appendChild(dotH);
 
-    var homeKick = rigori[r * 2];
+    var homeKick = rigoriCtx[r * 2];
     var homeEl = document.createElement('span');
     homeEl.className = 'r-outcome home ' + (homeKick ? (homeKick.esito === 'gol' ? 'gol' : 'err') : 'pending');
     homeEl.textContent = homeKick ? (homeKick.esito === 'gol' ? 'GOL' : 'ERR') : '—';
@@ -2216,7 +2454,7 @@ function buildRigoriSection() {
     num.textContent = (r + 1);
     row.appendChild(num);
 
-    var awayKick = rigori[r * 2 + 1];
+    var awayKick = rigoriCtx[r * 2 + 1];
     var awayEl = document.createElement('span');
     awayEl.className = 'r-outcome away ' + (awayKick ? (awayKick.esito === 'gol' ? 'gol' : 'err') : 'pending');
     awayEl.textContent = awayKick ? (awayKick.esito === 'gol' ? 'GOL' : 'ERR') : '—';
@@ -2236,36 +2474,61 @@ function buildRigoriSection() {
 // Decide quali fasi mostrare: 1T e 2T sempre; 1TS/2TS se contengono eventi
 // oppure se sono stati raggiunti i rigori (implica supplementari giocati).
 function phaseHasAnyEvent(phaseKey) {
-  for (var i = 0; i < marcatori.length; i++) {
-    if (marcatori[i].fase === phaseKey) return true;
+  var ctx = currentSummaryCtx();
+  for (var i = 0; i < ctx.marcatori.length; i++) {
+    if (ctx.marcatori[i].fase === phaseKey) return true;
   }
-  for (var j = 0; j < cartellini.length; j++) {
-    if (cartellini[j].fase === phaseKey) return true;
+  for (var j = 0; j < ctx.cartellini.length; j++) {
+    if (ctx.cartellini[j].fase === phaseKey) return true;
   }
   return false;
 }
 
-function renderSummary() {
-  summaryNameHome.textContent = squadre.casa.nome;
-  summaryNameAway.textContent = squadre.trasferta.nome;
+// Score helper che legge dal contesto (vs getScore globale che legge da live)
+function getScoreFromCtx() {
+  var ctx = currentSummaryCtx();
+  var casa = 0, trasferta = 0;
+  for (var i = 0; i < ctx.marcatori.length; i++) {
+    if (ctx.marcatori[i].squadra === 'casa') casa++; else trasferta++;
+  }
+  return { casa: casa, trasferta: trasferta };
+}
 
-  var score = getScore();
+function getRigoriScoreFromCtx() {
+  var ctx = currentSummaryCtx();
+  var rigoriCtx = ctx.rigori || [];
+  var c = 0, t = 0;
+  for (var i = 0; i < rigoriCtx.length; i++) {
+    if (rigoriCtx[i].esito === 'gol') {
+      if (rigoriCtx[i].squadra === 'casa') c++; else t++;
+    }
+  }
+  return { casa: c, trasferta: t };
+}
+
+function renderSummary() {
+  var ctx = currentSummaryCtx();
+  summaryNameHome.textContent = ctx.squadre.casa.nome;
+  summaryNameAway.textContent = ctx.squadre.trasferta.nome;
+
+  var score = getScoreFromCtx();
   summaryScoreHome.textContent = score.casa;
   summaryScoreAway.textContent = score.trasferta;
 
   // Indicazione rigori (sotto il punteggio) se presenti
-  if (rigori.length > 0) {
-    var rs = getRigoriScore();
+  var rigoriCtx = ctx.rigori || [];
+  if (rigoriCtx.length > 0) {
+    var rs = getRigoriScoreFromCtx();
     summaryRigoriScore.textContent =
-      '(dopo i rigori: ' + squadre.casa.nome + ' ' + rs.casa +
-      ' — ' + rs.trasferta + ' ' + squadre.trasferta.nome + ')';
+      '(dopo i rigori: ' + ctx.squadre.casa.nome + ' ' + rs.casa +
+      ' — ' + rs.trasferta + ' ' + ctx.squadre.trasferta.nome + ')';
   } else {
     summaryRigoriScore.textContent = '';
   }
 
   summaryContent.innerHTML = '';
 
-  var suppPlayed = rigori.length > 0 || phaseHasAnyEvent('1TS') || phaseHasAnyEvent('2TS');
+  var suppPlayed = rigoriCtx.length > 0 || phaseHasAnyEvent('1TS') || phaseHasAnyEvent('2TS');
   var phasesToShow = ['1T', '2T'];
   if (suppPlayed) phasesToShow.push('1TS', '2TS');
 
@@ -2280,6 +2543,359 @@ function renderSummary() {
 btnNewMatchSummary.addEventListener('pointerdown', function(e) {
   e.preventDefault();
   showSetup();
+});
+
+// ═══════════════════════════════════════════
+// STORICO PARTITE
+// ═══════════════════════════════════════════
+var STORICO_KEY = 'subbuteo:storico';
+
+function loadStorico() {
+  try {
+    var raw = localStorage.getItem(STORICO_KEY);
+    if (!raw) return [];
+    var arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) { return []; }
+}
+
+function saveStorico(arr) {
+  try {
+    localStorage.setItem(STORICO_KEY, JSON.stringify(arr));
+  } catch (e) {}
+}
+
+function addToStorico(entry) {
+  var arr = loadStorico();
+  arr.unshift(entry); // più recente in testa
+  saveStorico(arr);
+}
+
+function deleteFromStorico(id) {
+  var arr = loadStorico();
+  var out = [];
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i].id !== id) out.push(arr[i]);
+  }
+  saveStorico(out);
+}
+
+function clearStoricoAll() {
+  try { localStorage.removeItem(STORICO_KEY); } catch (e) {}
+}
+
+// Costruisce l'entry storico dallo stato live al momento dell'ingresso in FINITA.
+function buildStoricoEntryFromLive() {
+  return {
+    id: 'm' + Date.now() + '-' + Math.floor(Math.random() * 100000),
+    data: Date.now(),
+    squadre: {
+      casa: { nome: squadre.casa.nome, rosa: squadre.casa.rosa.slice() },
+      trasferta: { nome: squadre.trasferta.nome, rosa: squadre.trasferta.rosa.slice() }
+    },
+    marcatori: marcatori.slice(),
+    cartellini: cartellini.slice(),
+    rigori: rigori.slice(),
+    phaseDurations: {
+      '1T':  PHASE_DURATIONS['1T'],
+      '2T':  PHASE_DURATIONS['2T'],
+      '1TS': PHASE_DURATIONS['1TS'],
+      '2TS': PHASE_DURATIONS['2TS']
+    }
+  };
+}
+
+// Formatta data italiana compatta: "12/04/2026 21:30"
+function formatStoricoDate(ts) {
+  var d = new Date(ts);
+  var pad = function(n) { return n < 10 ? '0' + n : String(n); };
+  return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() +
+    ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+// Punteggio da un array marcatori (per entry dello storico)
+function scoreFromMarcatori(marc) {
+  var c = 0, t = 0;
+  for (var i = 0; i < marc.length; i++) {
+    if (marc[i].squadra === 'casa') c++; else t++;
+  }
+  return { casa: c, trasferta: t };
+}
+
+function rigoriScoreFromArr(arr) {
+  var c = 0, t = 0;
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i].esito === 'gol') {
+      if (arr[i].squadra === 'casa') c++; else t++;
+    }
+  }
+  return { casa: c, trasferta: t };
+}
+
+// ── Schermata storico ──
+var screenStorico = document.getElementById('screen-storico');
+var storicoListEl = document.getElementById('storico-list');
+var btnBackStorico = document.getElementById('btn-back-storico');
+var btnClearStorico = document.getElementById('btn-clear-storico');
+var btnStoricoSetup = document.getElementById('btn-storico-setup');
+var btnBackStoricoSummary = document.getElementById('btn-back-storico-summary');
+
+function updateStoricoSetupButton() {
+  var arr = loadStorico();
+  if (arr.length > 0) btnStoricoSetup.classList.remove('hidden');
+  else btnStoricoSetup.classList.add('hidden');
+}
+
+function showStorico() {
+  screenSetup.classList.remove('active');
+  screenMatch.classList.remove('active');
+  screenStorico.classList.add('active');
+  renderStoricoList();
+}
+
+function hideStorico() {
+  screenStorico.classList.remove('active');
+}
+
+function renderStoricoList() {
+  var arr = loadStorico();
+  storicoListEl.innerHTML = '';
+  if (arr.length === 0) {
+    var empty = document.createElement('div');
+    empty.className = 'storico-empty';
+    empty.textContent = 'Nessuna partita in archivio';
+    storicoListEl.appendChild(empty);
+    return;
+  }
+  for (var i = 0; i < arr.length; i++) {
+    storicoListEl.appendChild(buildStoricoRow(arr[i]));
+  }
+}
+
+function buildStoricoRow(entry) {
+  var row = document.createElement('div');
+  row.className = 'storico-row';
+
+  var dateEl = document.createElement('div');
+  dateEl.className = 'storico-date';
+  dateEl.textContent = formatStoricoDate(entry.data);
+  row.appendChild(dateEl);
+
+  var matchEl = document.createElement('div');
+  matchEl.className = 'storico-match';
+
+  var homeName = document.createElement('span');
+  homeName.className = 'storico-team-home';
+  homeName.textContent = entry.squadre.casa.nome;
+  matchEl.appendChild(homeName);
+
+  var sc = scoreFromMarcatori(entry.marcatori || []);
+  var scoreEl = document.createElement('span');
+  scoreEl.className = 'storico-score-numbers';
+  scoreEl.textContent = sc.casa + ' — ' + sc.trasferta;
+  matchEl.appendChild(scoreEl);
+
+  var awayName = document.createElement('span');
+  awayName.className = 'storico-team-away';
+  awayName.textContent = entry.squadre.trasferta.nome;
+  matchEl.appendChild(awayName);
+
+  var rigArr = entry.rigori || [];
+  if (rigArr.length > 0) {
+    var rs = rigoriScoreFromArr(rigArr);
+    var suf = document.createElement('span');
+    suf.className = 'storico-rigori-suffix';
+    suf.textContent = '(' + rs.casa + '-' + rs.trasferta + ' dcr)';
+    matchEl.appendChild(suf);
+  }
+
+  row.appendChild(matchEl);
+
+  var delBtn = document.createElement('button');
+  delBtn.className = 'btn-storico-delete';
+  delBtn.textContent = '🗑';
+  delBtn.setAttribute('aria-label', 'Elimina partita');
+  delBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (confirm('Eliminare questa partita dallo storico?')) {
+      deleteFromStorico(entry.id);
+      renderStoricoList();
+      updateStoricoSetupButton();
+    }
+  });
+  row.appendChild(delBtn);
+
+  // Tap sulla riga (non sul bottone elimina) apre il riepilogo in read-only
+  row.addEventListener('click', function(e) {
+    if (e.target === delBtn || (e.target.closest && e.target.closest('.btn-storico-delete'))) return;
+    viewStoricoEntry(entry);
+  });
+
+  return row;
+}
+
+function viewStoricoEntry(entry) {
+  summaryCtx = entry;
+  // Nascondo screen-storico, mostro screen-match con summary-panel in read-only
+  screenStorico.classList.remove('active');
+  screenMatch.classList.add('active', 'storico-view');
+  summaryPanel.classList.add('active', 'readonly');
+  rigoriPanel.classList.remove('active');
+  renderSummary();
+}
+
+function exitStoricoView() {
+  summaryCtx = null;
+  summaryPanel.classList.remove('active', 'readonly');
+  screenMatch.classList.remove('active', 'storico-view');
+  showStorico();
+}
+
+btnStoricoSetup.addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  showStorico();
+});
+
+btnBackStorico.addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  hideStorico();
+  screenSetup.classList.add('active');
+  updateStoricoSetupButton();
+});
+
+btnClearStorico.addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  if (confirm('Eliminare tutte le partite salvate? L\'operazione non è reversibile.')) {
+    clearStoricoAll();
+    renderStoricoList();
+    updateStoricoSetupButton();
+  }
+});
+
+btnBackStoricoSummary.addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  exitStoricoView();
+});
+
+// ═══════════════════════════════════════════
+// EXPORT RIEPILOGO
+// ═══════════════════════════════════════════
+function teamTag(nome) {
+  if (!nome) return '';
+  // Prime 3 lettere alfanumeriche maiuscole (strip spazi/accenti basici)
+  var clean = nome.normalize ? nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : nome;
+  clean = clean.replace(/[^A-Za-z0-9]/g, '');
+  return clean.substring(0, 3).toUpperCase();
+}
+
+function buildSummaryText() {
+  var ctx = currentSummaryCtx();
+  var nomeCasa = ctx.squadre.casa.nome;
+  var nomeAway = ctx.squadre.trasferta.nome;
+  var tagCasa = teamTag(nomeCasa);
+  var tagAway = teamTag(nomeAway);
+  var sc = getScoreFromCtx();
+  var rigoriCtx = ctx.rigori || [];
+
+  var lines = [];
+  lines.push('⚽ ' + nomeCasa + ' ' + sc.casa + ' — ' + sc.trasferta + ' ' + nomeAway);
+
+  if (rigoriCtx.length > 0) {
+    var rs = getRigoriScoreFromCtx();
+    var winner = rs.casa > rs.trasferta ? nomeCasa : (rs.trasferta > rs.casa ? nomeAway : '');
+    var rigoriLine = '🎯 Rigori: ' + rs.casa + ' — ' + rs.trasferta;
+    if (winner) rigoriLine += ' (' + winner + ')';
+    lines.push(rigoriLine);
+  }
+
+  // Sezioni per fase (in ordine PT, ST, 1TS, 2TS)
+  var phases = ['1T', '2T'];
+  if (rigoriCtx.length > 0 || phaseHasAnyEvent('1TS') || phaseHasAnyEvent('2TS')) {
+    phases.push('1TS', '2TS');
+  }
+
+  for (var p = 0; p < phases.length; p++) {
+    var ph = phases[p];
+    var evs = [];
+    for (var i = 0; i < ctx.marcatori.length; i++) {
+      if (ctx.marcatori[i].fase === ph) evs.push({ kind: 'goal', data: ctx.marcatori[i] });
+    }
+    for (var j = 0; j < ctx.cartellini.length; j++) {
+      if (ctx.cartellini[j].fase === ph) evs.push({ kind: ctx.cartellini[j].tipo, data: ctx.cartellini[j] });
+    }
+    if (evs.length === 0) continue; // omettiamo sezioni vuote
+    evs.sort(function(a, b) { return a.data.minutoGioco - b.data.minutoGioco; });
+
+    lines.push('');
+    lines.push(PHASE_LABELS[ph].toUpperCase());
+    for (var k = 0; k < evs.length; k++) {
+      var ev = evs[k];
+      var tag = ev.data.squadra === 'casa' ? tagCasa : tagAway;
+      var nomeGioc = ev.data.giocatore || '—';
+      var prefix = '';
+      if (ev.kind === 'giallo') prefix = '🟨 ';
+      else if (ev.kind === 'rosso') prefix = '🟥 ';
+      lines.push(' ' + ev.data.minutoGioco + "' " + prefix + nomeGioc + ' (' + tag + ')');
+    }
+  }
+
+  if (rigoriCtx.length > 0) {
+    lines.push('');
+    lines.push('Rigori:');
+    var totalRounds = Math.ceil(rigoriCtx.length / 2);
+    for (var r = 0; r < totalRounds; r++) {
+      var hk = rigoriCtx[r * 2];
+      var ak = rigoriCtx[r * 2 + 1];
+      var hSym = hk ? (hk.esito === 'gol' ? '✓' : '✗') : '—';
+      var aSym = ak ? (ak.esito === 'gol' ? '✓' : '✗') : '—';
+      lines.push(' ' + (r + 1) + '. ' + tagCasa + ' ' + hSym + ' — ' + tagAway + ' ' + aSym);
+    }
+  }
+
+  lines.push('');
+  lines.push('—');
+  lines.push('SubTimer · https://subsubtimer.gabrielesano.workers.dev');
+
+  return lines.join('\n');
+}
+
+// ── Toast ──
+var toastEl = document.getElementById('toast');
+var toastTimer = null;
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() {
+    toastEl.classList.remove('show');
+  }, 2000);
+}
+
+function exportSummary() {
+  var text = buildSummaryText();
+  if (navigator.share) {
+    try {
+      navigator.share({ text: text }).catch(function() { /* utente annullato */ });
+      return;
+    } catch (e) { /* fallback */ }
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      navigator.clipboard.writeText(text).then(function() {
+        showToast('Copiato negli appunti');
+      }).catch(function() {
+        showToast('Copia non riuscita');
+      });
+      return;
+    } catch (e) {}
+  }
+  // Ultimo fallback: prompt con il testo selezionabile
+  try { prompt('Copia il riepilogo:', text); } catch (e) {}
+}
+
+document.getElementById('btn-export-summary').addEventListener('pointerdown', function(e) {
+  e.preventDefault();
+  exportSummary();
 });
 
 // ── Goal overlay ──
@@ -2458,6 +3074,12 @@ function goToPhase(newPhase) {
   if (newPhase === 'RIGORI') rigori = [];
   btnPlayPause.textContent = '▶ PLAY';
   btnPlayPause.classList.remove('playing');
+  // Snapshot automatica nello storico al primo ingresso in FINITA
+  if (newPhase === 'FINITA' && !storicoSavedId) {
+    var entry = buildStoricoEntryFromLive();
+    addToStorico(entry);
+    storicoSavedId = entry.id;
+  }
   updatePhaseBadges();
   updateDisplay();
   saveMatch();
