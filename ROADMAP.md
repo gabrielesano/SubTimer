@@ -58,9 +58,11 @@
 
 ## Qualità della vita
 
-- **Storico partite**: salvare i risultati delle partite passate in
-  localStorage e renderli consultabili.
-- **Export riepilogo**: generare un testo o immagine condivisibile con
-  il risultato della partita.
+- **Storico partite**: in-scope dal 2026-04-12, spec completa in
+  `SPEC.md` ("Schermata storico partite" + "Storico partite (storage)").
+  Da implementare.
+- **Export riepilogo**: in-scope dal 2026-04-12, spec completa in
+  `SPEC.md` ("Export riepilogo"). Solo testo via Web Share API +
+  fallback clipboard. Da implementare.
 - **Icona app personalizzata**: sostituire il placeholder con un'icona
   disegnata ad hoc.

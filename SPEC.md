@@ -36,7 +36,9 @@ protetto da feature detection e degradare gracefully.
 Tutto lo stato della partita vive in un singolo oggetto JavaScript,
 serializzato in `localStorage` a ogni modifica sotto una chiave dedicata
 (es. `subbuteo:matchState`). Le rose giocatori vivono in una chiave
-separata (`subbuteo:rosters`) indipendente dalla partita corrente.
+separata (`subbuteo:rosters`) indipendente dalla partita corrente. Lo
+storico delle partite concluse vive in una terza chiave
+(`subbuteo:storico`) — vedi "Storico partite" più sotto.
 
 ### Stato partita
 
@@ -197,6 +199,8 @@ Elementi:
 - Sezione "Gestione rose": permette di creare/modificare/eliminare squadre
   e i loro giocatori. Interfaccia semplice con lista squadre, e per ogni
   squadra una lista editabile di nomi giocatori.
+- Bottone "Storico partite": apre la schermata storico (vedi sotto).
+  Visibile solo se `subbuteo:storico` contiene almeno un'entry.
 - Bottone grande "Inizia partita" che inizializza lo stato e passa alla
   schermata partita.
 
@@ -267,6 +271,141 @@ dove il tipo evento è `GOL` (verde), `● AMM.` (giallo) o `● ESP.` (rosso).
 con `fase === 'FINITA'` NON viene scartato da `loadMatch()`. Il
 ripristino mostra la schermata di riepilogo. Solo tappando "Nuova
 partita" viene chiamato `clearMatch()` e si torna al setup.
+
+**Salvataggio nello storico**: nel momento in cui una partita entra in
+`FINITA` (cioè quando l'utente preme "Fase successiva" dall'ultima fase
+giocabile), una snapshot viene aggiunta in testa all'array
+`subbuteo:storico` in `localStorage`. Il salvataggio è automatico e
+avviene **una sola volta** per partita (un flag nello stato impedisce
+duplicati al reload). Vedi "Storico partite" più sotto per il formato.
+
+**Bottone Esporta**: in fondo al pannello di riepilogo, accanto al
+bottone "Nuova partita", compare un bottone "Esporta" che genera il
+riepilogo testuale e lo passa a `navigator.share({ text })` (iPadOS lo
+supporta). Fallback: se `navigator.share` non esiste o rifiuta, copia
+negli appunti via `navigator.clipboard.writeText` e mostra un toast
+"Copiato negli appunti". Vedi "Export riepilogo" più sotto per il
+formato testuale.
+
+**Modalità read-only**: quando il riepilogo viene aperto da una partita
+nello storico (non quella appena finita), il bottone "Nuova partita" è
+sostituito da "Torna allo storico". Il bottone "Esporta" resta identico.
+Nessun'altra differenza: i dati visualizzati sono gli stessi.
+
+### Schermata storico partite
+
+Raggiungibile dal bottone "Storico partite" nella schermata setup.
+Sostituisce la schermata setup fino a quando non si torna indietro.
+
+Struttura:
+- **Titolo**: "STORICO PARTITE".
+- **Bottone "Svuota storico"** in alto a destra. Apre una modale di
+  conferma ("Eliminare tutte le partite salvate? L'operazione non è
+  reversibile.") con bottoni "Annulla" / "Elimina tutto".
+- **Lista partite**, dalla più recente in alto. Ogni riga mostra:
+  ```
+  [data]  Squadra casa  N — M  Squadra trasferta  [(X-Y dcr)]  [🗑]
+  ```
+  dove:
+  - `data`: formato `GG/MM/AAAA HH:MM` (l'orario serve a distinguere
+    più partite giocate lo stesso giorno).
+  - `N — M`: risultato finale nei tempi regolamentari + supplementari
+    (senza rigori).
+  - `(X-Y dcr)`: suffisso mostrato solo se la partita è stata decisa ai
+    rigori, con il risultato dei tiri dal dischetto.
+  - `🗑`: icona elimina. Tap apre una modale di conferma ("Eliminare
+    questa partita?") con "Annulla" / "Elimina".
+- **Tap sulla riga** (in qualsiasi punto tranne l'icona elimina):
+  carica la snapshot nella UI di riepilogo finale in modalità read-only.
+- **Bottone "Indietro"** in basso per tornare alla schermata setup.
+
+Se lo storico è vuoto (caso impossibile dalla setup se il bottone è
+nascosto quando non ci sono partite, ma difensivo): mostrare "Nessuna
+partita in archivio" al posto della lista.
+
+### Storico partite (storage)
+
+Chiave `localStorage`: `subbuteo:storico`.
+
+```
+Array<{
+  id: string,                  // identificativo univoco (timestamp o uuid-like)
+  data: number,                // Date.now() al momento del salvataggio
+  squadre: { casa: {...}, trasferta: {...} },   // come lo stato partita
+  marcatori: Array<...>,        // copiato tal quale
+  cartellini: Array<...>,       // copiato tal quale
+  rigori: Array<...>,           // copiato tal quale (anche se vuoto)
+  phaseDurations: { '1T', '2T', '1TS', '2TS' }  // per rendering coerente
+}>
+```
+
+Note:
+- Nessun limite al numero di entry. `localStorage` ha spazio sufficiente
+  per migliaia di partite vista la dimensione tipica (~qualche KB).
+- Lo stato del timer non viene salvato (irrilevante a partita conclusa).
+- Il campo `fase` non serve: è sempre `FINITA` per le entry in storico.
+- La snapshot viene creata copiando i campi rilevanti dallo stato attivo
+  al momento dell'ingresso in `FINITA`, **non** referenziando oggetti
+  dello stato attivo (per isolamento rispetto a modifiche successive).
+
+### Export riepilogo
+
+Funzione `buildSummaryText(match)` che ritorna una stringa formattata a
+partire da una partita (attiva o da storico, indifferente — la struttura
+dei dati è la stessa).
+
+Formato:
+
+```
+⚽ {nomeCasa} {gol casa} — {gol trasferta} {nomeTrasferta}
+🎯 Rigori: {X} — {Y} ({nome vincitore})       ← solo se rigori.length > 0
+
+PRIMO TEMPO
+ {min}' {nome} ({TAG})                         ← gol
+ {min}' 🟨 {nome} ({TAG})                      ← ammonizione
+ {min}' 🟥 {nome} ({TAG})                      ← espulsione
+
+SECONDO TEMPO
+ ...
+
+PRIMO SUPPLEMENTARE                            ← solo se giocato
+ ...
+
+SECONDO SUPPLEMENTARE                          ← solo se giocato
+ ...
+
+Rigori:                                        ← solo se rigori.length > 0
+ 1. {TAG_casa} ✓ — {TAG_trasferta} ✓
+ 2. {TAG_casa} ✓ — {TAG_trasferta} ✗
+ ...
+
+—
+SubTimer · https://subsubtimer.gabrielesano.workers.dev
+```
+
+dove `{TAG}` è un'abbreviazione a 3 lettere maiuscole del nome squadra
+(prime 3 lettere del nome, es. `NAP`, `JUV`, `ITA`).
+
+Regole:
+- Se una fase regolamentare (1T, 2T) non ha eventi → stampare comunque
+  l'intestazione e, sotto, ` (nessun evento)` in corsivo testuale —
+  oppure, più semplice, omettere la sezione. **Scelta**: omettere le
+  sezioni senza eventi (testo più compatto, più leggibile in chat).
+- Le fasi supplementari vanno incluse solo se `phaseHasAnyEvent()` vale
+  true per quella fase oppure se sono stati giocati i rigori (implica
+  supplementari). Stessa logica della schermata riepilogo.
+- Emoji `⚽ 🎯 🟨 🟥 ✓ ✗` incluse nel testo: è il formato standard per
+  condivisione in chat.
+- Footer con URL dell'app: firma + promo, una sola riga.
+
+Condivisione:
+1. Tap su "Esporta" → `text = buildSummaryText(currentMatch)`.
+2. Se `navigator.share` esiste → `navigator.share({ text })`. L'utente
+   vede il foglio di condivisione nativo di iPadOS.
+3. Altrimenti → `navigator.clipboard.writeText(text)` + toast "Copiato
+   negli appunti" per 2 secondi.
+4. Entrambe le API vanno in try/catch: se l'utente annulla o l'API
+   fallisce, nessun errore visibile.
 
 ### Overlay cartellino
 
@@ -463,13 +602,17 @@ Ogni step chiude un pezzo funzionale e lascia l'app comunque usabile.
 
 Esplicitamente fuori scope per la prima versione (richiesto dall'utente):
 
-- Export del riepilogo partita.
-- Storico partite passate.
 - Secondo display/proiezione su TV.
 - Possesso palla, statistiche avanzate, numero tiri.
 - Multi-utente, sincronizzazione, backend.
 - Gestione intervallo come fase con timer.
 - Autenticazione o protezione accesso.
+
+Spostate in-scope il 2026-04-12 su richiesta esplicita dell'utente
+(da specificare in dettaglio prima dell'implementazione):
+
+- Storico partite passate.
+- Export del riepilogo partita.
 
 Tutte queste possono essere aggiunte in future iterazioni, ma NON vanno
 implementate ora nemmeno in forma preliminare, per mantenere l'app snella
