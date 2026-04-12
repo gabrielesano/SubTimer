@@ -1,8 +1,8 @@
-# SubTimer
+# SubbuteoBoard
 
 Cronometro e tabellino per partite di Subbuteo, pensato per iPad in landscape.
 
-**App live:** https://subsubtimer.gabrielesano.workers.dev
+**App live:** https://subbuteoboard.gabrielesano.workers.dev
 
 ## Cos'è
 

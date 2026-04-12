@@ -1,6 +1,6 @@
 {
-  "name": "SubTimer — Tabellone Subbuteo",
-  "short_name": "SubTimer",
+  "name": "SubbuteoBoard — Tabellone Subbuteo",
+  "short_name": "SubbuteoBoard",
   "description": "Timer e tabellone per partite di subbuteo",
   "start_url": ".",
   "display": "standalone",

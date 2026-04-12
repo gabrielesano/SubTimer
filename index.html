@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0d0d0d">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>SubTimer</title>
+<title>SubbuteoBoard</title>
 <style>
 /* ── Team color vars ── */
 :root {
@@ -43,6 +43,7 @@ html, body {
 
 /* ── TOP BAR ── */
 .top-bar {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -327,12 +328,17 @@ html, body {
   -webkit-overflow-scrolling: touch;
 }
 
-.setup-title {
-  font-size: clamp(24px, 4vh, 40px);
-  font-weight: 800;
-  text-align: center;
-  color: #d4a017;
-  letter-spacing: 0.05em;
+.setup-logo {
+  display: block;
+  margin: 0 auto;
+  height: clamp(60px, 10vh, 120px);
+}
+
+.top-bar-logo {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  height: clamp(28px, 6vh, 44px);
 }
 
 .setup-section {
@@ -1306,7 +1312,7 @@ html, body {
 
 <!-- ══ SETUP SCREEN ══ -->
 <div id="screen-setup" class="screen-setup active">
-  <div class="setup-title">SUBTIMER</div>
+  <img src="logo_hd.png" alt="SubbuteoBoard" class="setup-logo">
 
   <!-- Team selection -->
   <div class="setup-section">
@@ -1390,6 +1396,7 @@ html, body {
       <span class="phase-badge" data-phase="2TS">2TS</span>
       <span class="phase-badge" data-phase="RIGORI">R</span>
     </div>
+    <img src="logo_hd.png" alt="SubbuteoBoard" class="top-bar-logo">
     <div class="top-right">
       <button id="btn-next-phase" class="btn-next-phase">FASE SUCC. ▸</button>
       <div class="settings-wrap">
@@ -3130,7 +3137,7 @@ function buildSummaryText() {
 
   lines.push('');
   lines.push('—');
-  lines.push('SubTimer · https://subsubtimer.gabrielesano.workers.dev');
+  lines.push('SubbuteoBoard · https://subbuteoboard.gabrielesano.workers.dev');
 
   return lines.join('\n');
 }

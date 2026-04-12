@@ -38,8 +38,9 @@
   pattern tinta-unita/strisce, CSS custom properties dinamiche
   (`--color-home`, `--color-away`, bg variants), rose organizzate in
   `rose/<schema>/` con `rose-index.json`, dropdown raggruppati per schema.
-- **Icona app personalizzata**: sostituire il placeholder con un'icona
-  disegnata ad hoc.
+- ~~**Icona app personalizzata**~~: ✅ logo `logo_hd.png` usato per
+  icone PWA (192/512), nella top-bar durante la partita e nella
+  schermata setup al posto del titolo testuale.
 
 ## Idee secondarie (nice to have)
 

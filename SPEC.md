@@ -19,7 +19,7 @@ mai ricorrere alla tastiera software.
 - **Server**: servito staticamente da `python -m http.server 8080` (o simile)
   lanciato dal PC locale. Accesso da iPad via `http://<ip-pc>:8080`.
 - **Hosting**: deploy pubblico su Cloudflare Workers tramite GitHub CI/CD.
-  URL: `https://subsubtimer.gabrielesano.workers.dev`. Ogni push su `main`
+  URL: `https://subbuteoboard.gabrielesano.workers.dev`. Ogni push su `main`
   triggera un redeploy automatico.
 - **PWA**: l'app deve essere installabile sull'iPad come PWA standalone
   (manifest + service worker minimale per caching statico).
@@ -432,7 +432,7 @@ Rigori:                                        ← solo se rigori.length > 0
  ...
 
 —
-SubTimer · https://subsubtimer.gabrielesano.workers.dev
+SubTimer · https://subbuteoboard.gabrielesano.workers.dev
 ```
 
 dove `{TAG}` è un'abbreviazione a 3 lettere maiuscole del nome squadra
