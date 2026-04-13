@@ -18,7 +18,7 @@
 - ~~**Export riepilogo**~~: ✅ testo formattato con emoji, condivisione
   via Web Share API + fallback clipboard.
 
-## Da implementare
+## Implementati (fase 2)
 
 - ~~**Conferma "Fase successiva"**~~: ✅ `confirm()` nativo prima di
   avanzare fase, per evitare tap accidentali.
@@ -38,9 +38,11 @@
   pattern tinta-unita/strisce, CSS custom properties dinamiche
   (`--color-home`, `--color-away`, bg variants), rose organizzate in
   `rose/<schema>/` con `rose-index.json`, dropdown raggruppati per schema.
-- ~~**Icona app personalizzata**~~: ✅ logo `logo_hd.png` usato per
-  icone PWA (192/512), nella top-bar durante la partita e nella
-  schermata setup al posto del titolo testuale.
+- ~~**Icona app personalizzata**~~: ✅ logo `logo_hd.png` (sfondo
+  trasparente) per icone PWA (192/512), top-bar e schermata setup.
+- ~~**Tema chiaro/scuro**~~: ✅ tutti i colori strutturali via CSS custom
+  properties, toggle in setup e menu partita, preferenza in `localStorage`
+  sotto `subbuteo:theme`.
 
 ## Idee secondarie (nice to have)
 

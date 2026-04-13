@@ -432,7 +432,7 @@ Rigori:                                        ← solo se rigori.length > 0
  ...
 
 —
-SubTimer · https://subbuteoboard.gabrielesano.workers.dev
+SubbuteoBoard · https://subbuteoboard.gabrielesano.workers.dev
 ```
 
 dove `{TAG}` è un'abbreviazione a 3 lettere maiuscole del nome squadra
@@ -510,11 +510,23 @@ nome e nel frattempo il timer avanza. Quindi:
 - Nessun `:hover` state (irrilevante su touch, può causare bug di sticky
   highlight su iOS).
 - Feedback visivo immediato al tap (es. `:active` con background più scuro).
-- Contrasto alto (dark theme consigliato per visibilità su tavolo illuminato).
+- Contrasto alto (dark/light selezionabile, dark di default).
 - Font grandi e leggibili a distanza (almeno 16px per testi secondari,
   molto più grande per punteggio e timer).
 - Layout in CSS Grid o Flexbox, dimensioni in `vh`/`vw` per adattarsi a
   schermi diversi senza scroll.
+
+### Tema chiaro/scuro
+
+L'app supporta un tema chiaro e uno scuro. Il tema scuro è il default.
+I colori strutturali (sfondo, testo, bordi) sono definiti come CSS custom
+properties in `:root` (dark) e `.light-theme` (light). Toggle accessibile
+dalla schermata setup e dal menu ingranaggio durante la partita. La
+preferenza è salvata in `localStorage` sotto `subbuteo:theme` e
+ripristinata al caricamento.
+
+I colori semantici (verde gol, rosso errore, giallo cartellino, oro fase
+attiva, blu bottone fase) restano identici in entrambi i temi.
 
 ## Gestione audio
 

@@ -20,7 +20,7 @@ proceduralmente via Web Audio API — nessun asset audio esterno.
 - `index.html` — tutta l'app (HTML, CSS e JS inline).
 - `sw2.js` — service worker per l'uso offline.
 - `manifest.json` — manifest PWA.
-- `rosa_*.json` + `rose-index.json` — rose predefinite caricate al primo avvio.
+- `rose-index.json` + `rose/` — rose predefinite organizzate per schema colori.
 - Hosting: Cloudflare Workers (deploy automatico su push a `main`).
 
 Nessun framework, nessun bundler, nessuna dipendenza runtime.
