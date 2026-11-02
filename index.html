@@ -522,6 +522,12 @@ html, body {
   font-size: clamp(12px, 1.6vh, 15px);
 }
 
+.setup-hint {
+  margin-top: 1vh;
+  font-size: clamp(12px, 1.6vh, 15px);
+  color: var(--text-dim);
+}
+
 /* ── GOAL OVERLAY ── */
 .overlay {
   display: none;
@@ -1504,6 +1510,17 @@ html, body {
     </div>
   </div>
 
+  <!-- Backup -->
+  <div class="setup-section">
+    <h2>Backup dati</h2>
+    <div class="import-row">
+      <button class="btn-setup" id="btn-backup-export">Esporta backup</button>
+      <button class="btn-setup" id="btn-backup-import">Importa backup</button>
+      <input type="file" id="backup-file" accept=".json,application/json" hidden>
+    </div>
+    <div class="setup-hint">Salva rose e storico partite in un file JSON. L'import unisce i dati a quelli già presenti.</div>
+  </div>
+
   <button class="btn-start" id="btn-start">INIZIA PARTITA</button>
   <button class="btn-setup" id="btn-storico-setup">Storico partite</button>
   <button class="btn-theme-toggle" id="btn-theme-setup">Tema: scuro</button>
@@ -1883,10 +1900,47 @@ function loadRosters() {
 }
 
 function saveRosters(list) {
-  localStorage.setItem(ROSTERS_KEY, JSON.stringify({ squadre: list }));
+  try {
+    localStorage.setItem(ROSTERS_KEY, JSON.stringify({ squadre: list }));
+  } catch (e) {
+    showToast('Impossibile salvare le rose (spazio esaurito?)');
+  }
 }
 
 var rosters = loadRosters();
+
+// Le squadre sono identificate dal nome (unico): i <select> usano il nome
+// come value, così eliminare una squadra non sposta la selezione su un'altra.
+function findRosterIdx(nome) {
+  if (!nome) return -1;
+  for (var i = 0; i < rosters.length; i++) {
+    if (rosters[i].nome === nome) return i;
+  }
+  return -1;
+}
+
+function isHex(c) {
+  return typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c);
+}
+
+// Normalizza uno schema colori letto da file esterno; null se non valido.
+function validSchema(s) {
+  if (!s || typeof s.id !== 'string' || !Array.isArray(s.colori)) return null;
+  var colori = s.colori.filter(isHex);
+  if (colori.length === 0) return null;
+  var patterns = ['tinta-unita', 'strisce-verticali', 'strisce-orizzontali'];
+  return {
+    id: s.id,
+    pattern: patterns.indexOf(s.pattern) !== -1 ? s.pattern : 'tinta-unita',
+    colori: colori,
+    pantaloncini: isHex(s.pantaloncini) ? s.pantaloncini : null
+  };
+}
+
+function cleanRosa(arr) {
+  return arr.filter(function(s) { return typeof s === 'string' && s.trim(); })
+            .map(function(s) { return s.trim(); });
+}
 
 // ── Color helpers ──
 function darkenHex(hex, amount) {
@@ -1987,22 +2041,54 @@ var btnSyncServer = document.getElementById('btn-sync-server');
 var syncStatus = document.getElementById('sync-status');
 var btnStart = document.getElementById('btn-start');
 
+// ── Preferenze setup (ultime squadre e durate usate) ──
+var SETUP_KEY = 'subbuteo:setup';
+
+function loadSetupPrefs() {
+  try {
+    var p = JSON.parse(localStorage.getItem(SETUP_KEY));
+    if (p && typeof p === 'object') return p;
+  } catch (e) {}
+  return {};
+}
+
+function saveSetupPrefs(p) {
+  try { localStorage.setItem(SETUP_KEY, JSON.stringify(p)); } catch (e) {}
+}
+
+var setupPrefs = loadSetupPrefs();
+if (setupPrefs.durRegular) durRegular.value = setupPrefs.durRegular;
+if (setupPrefs.durExtra) durExtra.value = setupPrefs.durExtra;
+
+function clampInt(v, min, max, def) {
+  var n = parseInt(v, 10);
+  if (isNaN(n)) return def;
+  return Math.min(max, Math.max(min, n));
+}
+
+// Nel setup i bottoni reagiscono al tap completo ("click") e non al
+// pointerdown: la schermata scorre, e uno swipe che parte su un bottone
+// non deve attivarlo.
+function onTap(el, fn) {
+  el.addEventListener('click', function(e) { e.preventDefault(); fn(e); });
+}
+
 function refreshSetup() {
   // Group rosters by schema id
   var groups = {};
   var ungrouped = [];
-  rosters.forEach(function(t, i) {
+  rosters.forEach(function(t) {
     if (t.schema && t.schema.id) {
       var gid = t.schema.id;
       if (!groups[gid]) groups[gid] = { schema: t.schema, items: [] };
-      groups[gid].items.push({ idx: i, nome: t.nome });
+      groups[gid].items.push(t.nome);
     } else {
-      ungrouped.push({ idx: i, nome: t.nome });
+      ungrouped.push(t.nome);
     }
   });
 
   [selHome, selAway].forEach(function(sel) {
-    var val = sel.value;
+    var val = sel.value || (sel === selHome ? setupPrefs.casa : setupPrefs.trasferta);
     sel.innerHTML = '';
     var groupIds = Object.keys(groups);
     for (var g = 0; g < groupIds.length; g++) {
@@ -2011,44 +2097,47 @@ function refreshSetup() {
       optgroup.label = schemaLabel(grp.schema);
       for (var j = 0; j < grp.items.length; j++) {
         var opt = document.createElement('option');
-        opt.value = grp.items[j].idx;
-        opt.textContent = grp.items[j].nome;
+        opt.value = grp.items[j];
+        opt.textContent = grp.items[j];
         optgroup.appendChild(opt);
       }
       sel.appendChild(optgroup);
     }
     for (var u = 0; u < ungrouped.length; u++) {
       var opt2 = document.createElement('option');
-      opt2.value = ungrouped[u].idx;
-      opt2.textContent = ungrouped[u].nome;
+      opt2.value = ungrouped[u];
+      opt2.textContent = ungrouped[u];
       sel.appendChild(opt2);
     }
-    if (val) sel.value = val;
+    if (findRosterIdx(val) >= 0) sel.value = val;
   });
-  // default: away = second team if available
+  // default: trasferta = prima squadra diversa dalla casa
   if (rosters.length >= 2 && selHome.value === selAway.value) {
-    selAway.value = '1';
+    for (var o = 0; o < selAway.options.length; o++) {
+      if (selAway.options[o].value !== selHome.value) {
+        selAway.value = selAway.options[o].value;
+        break;
+      }
+    }
   }
 
   // populate roster manager list
-  var prevIdx = rosterSel.value;
+  var prevName = rosterSel.value;
   rosterSel.innerHTML = '';
-  rosters.forEach(function(t, i) {
+  rosters.forEach(function(t) {
     var opt = document.createElement('option');
-    opt.value = i;
+    opt.value = t.nome;
     opt.textContent = t.nome;
     rosterSel.appendChild(opt);
   });
-  if (prevIdx !== '' && prevIdx < rosters.length) {
-    rosterSel.value = prevIdx;
-  }
+  if (findRosterIdx(prevName) >= 0) rosterSel.value = prevName;
   loadRosterEditor();
   if (typeof updateStoricoSetupButton === 'function') updateStoricoSetupButton();
 }
 
 function loadRosterEditor() {
-  var idx = parseInt(rosterSel.value);
-  if (isNaN(idx) || !rosters[idx]) {
+  var idx = findRosterIdx(rosterSel.value);
+  if (idx < 0) {
     rosterEdit.value = '';
     return;
   }
@@ -2057,66 +2146,184 @@ function loadRosterEditor() {
 
 rosterSel.addEventListener('change', loadRosterEditor);
 
-btnSaveRoster.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  var idx = parseInt(rosterSel.value);
-  if (isNaN(idx) || !rosters[idx]) return;
-  rosters[idx].rosa = rosterEdit.value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+onTap(btnSaveRoster, function() {
+  var idx = findRosterIdx(rosterSel.value);
+  if (idx < 0) return;
+  rosters[idx].rosa = cleanRosa(rosterEdit.value.split('\n'));
   saveRosters(rosters);
   refreshSetup();
+  showToast('Rosa salvata');
 });
 
-btnNewTeam.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
+onTap(btnNewTeam, function() {
   askText('Nome della squadra:', '', 'Crea').then(function(nome) {
     if (!nome || !nome.trim()) return;
-    rosters.push({ nome: nome.trim(), rosa: [] });
+    nome = nome.trim();
+    if (findRosterIdx(nome) >= 0) {
+      showAlert('Esiste già una squadra chiamata "' + nome + '".');
+      return;
+    }
+    rosters.push({ nome: nome, rosa: [] });
     saveRosters(rosters);
     refreshSetup();
-    rosterSel.value = rosters.length - 1;
+    rosterSel.value = nome;
     loadRosterEditor();
   });
 });
 
-btnDelTeam.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  var idx = parseInt(rosterSel.value);
-  if (isNaN(idx) || !rosters[idx]) return;
-  askConfirm('Eliminare "' + rosters[idx].nome + '"?', { okLabel: 'Elimina', danger: true }).then(function(ok) {
-    if (!ok || !rosters[idx]) return;
+onTap(btnDelTeam, function() {
+  var nome = rosterSel.value;
+  if (findRosterIdx(nome) < 0) return;
+  askConfirm('Eliminare "' + nome + '"?', { okLabel: 'Elimina', danger: true }).then(function(ok) {
+    var idx = findRosterIdx(nome);
+    if (!ok || idx < 0) return;
     rosters.splice(idx, 1);
     saveRosters(rosters);
     refreshSetup();
   });
 });
 
-btnImport.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
+onTap(btnImport, function() {
   var file = importJson.files[0];
   if (!file) return;
   var reader = new FileReader();
   reader.onload = function() {
     try {
       var data = JSON.parse(reader.result);
-      if (data.nome && Array.isArray(data.rosa)) {
-        // check if team already exists
-        var existing = rosters.findIndex(function(t){return t.nome === data.nome;});
+      if (typeof data.nome === 'string' && data.nome.trim() && Array.isArray(data.rosa)) {
+        var nome = data.nome.trim();
+        var rosa = cleanRosa(data.rosa);
+        var schema = validSchema(data.schema);
+        var existing = findRosterIdx(nome);
         if (existing >= 0) {
-          rosters[existing].rosa = data.rosa;
+          rosters[existing].rosa = rosa;
+          if (schema) rosters[existing].schema = schema;
         } else {
-          rosters.push({ nome: data.nome, rosa: data.rosa });
+          rosters.push({ nome: nome, rosa: rosa, schema: schema });
         }
         saveRosters(rosters);
         refreshSetup();
         importJson.value = '';
+        showToast('Rosa "' + nome + '" importata');
+      } else {
+        showAlert('Il file deve contenere { "nome": ..., "rosa": [...] }');
       }
     } catch (err) { showAlert('File JSON non valido'); }
   };
   reader.readAsText(file);
 });
 
-btnSyncServer.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
+// ── Backup completo (rose + storico) ──
+var btnBackupExport = document.getElementById('btn-backup-export');
+var btnBackupImport = document.getElementById('btn-backup-import');
+var backupFile = document.getElementById('backup-file');
+
+function backupFileName() {
+  var d = new Date();
+  var pad = function(n) { return n < 10 ? '0' + n : String(n); };
+  return 'subbuteoboard-backup-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.json';
+}
+
+function downloadText(text, fname) {
+  var blob = new Blob([text], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+  showToast('Backup scaricato');
+}
+
+function exportBackup() {
+  var json = JSON.stringify({
+    app: 'SubbuteoBoard',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    rosters: rosters,
+    storico: loadStorico()
+  }, null, 2);
+  var fname = backupFileName();
+  var file = null;
+  try { file = new File([json], fname, { type: 'application/json' }); } catch (e) {}
+  // Su iPad il foglio di condivisione permette di salvare su File/iCloud
+  if (file && navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file], title: 'Backup SubbuteoBoard' }).catch(function(err) {
+      if (!err || err.name !== 'AbortError') downloadText(json, fname);
+    });
+    return;
+  }
+  downloadText(json, fname);
+}
+
+// Unisce un backup ai dati locali: le rose con lo stesso nome vengono
+// sostituite, le partite dello storico aggiunte se il loro id manca.
+function mergeBackup(data) {
+  var res = { teamsAdded: 0, teamsUpdated: 0, matchesAdded: 0 };
+  (data.rosters || []).forEach(function(t) {
+    if (!t || typeof t.nome !== 'string' || !t.nome.trim() || !Array.isArray(t.rosa)) return;
+    var nome = t.nome.trim();
+    var clean = { nome: nome, rosa: cleanRosa(t.rosa), schema: validSchema(t.schema) };
+    var i = findRosterIdx(nome);
+    if (i >= 0) {
+      if (!clean.schema) clean.schema = rosters[i].schema || null;
+      rosters[i] = clean;
+      res.teamsUpdated++;
+    } else {
+      rosters.push(clean);
+      res.teamsAdded++;
+    }
+  });
+  saveRosters(rosters);
+
+  var st = loadStorico();
+  var ids = {};
+  st.forEach(function(e) { ids[e.id] = true; });
+  (data.storico || []).forEach(function(e) {
+    if (!e || !e.id || ids[e.id] || !e.squadre || !e.squadre.casa || !e.squadre.trasferta ||
+        !Array.isArray(e.marcatori)) return;
+    st.push(e);
+    ids[e.id] = true;
+    res.matchesAdded++;
+  });
+  st.sort(function(a, b) { return (b.data || 0) - (a.data || 0); });
+  saveStorico(st);
+  refreshSetup();
+  return res;
+}
+
+onTap(btnBackupExport, exportBackup);
+onTap(btnBackupImport, function() { backupFile.click(); });
+
+backupFile.addEventListener('change', function() {
+  var file = backupFile.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function() {
+    backupFile.value = '';
+    var data;
+    try { data = JSON.parse(reader.result); } catch (e) { data = null; }
+    if (!data || data.app !== 'SubbuteoBoard' ||
+        (!Array.isArray(data.rosters) && !Array.isArray(data.storico))) {
+      showAlert('Il file non è un backup di SubbuteoBoard.');
+      return;
+    }
+    var nTeams = (data.rosters || []).length;
+    var nMatches = (data.storico || []).length;
+    askConfirm('Importare il backup?\n' + nTeams + ' squadre (quelle con lo stesso nome verranno sostituite) e ' +
+      nMatches + ' partite (quelle già presenti vengono saltate).', { okLabel: 'Importa' }).then(function(ok) {
+      if (!ok) return;
+      var r = mergeBackup(data);
+      showAlert('Backup importato.\nSquadre: ' + r.teamsAdded + ' nuove, ' + r.teamsUpdated +
+        ' aggiornate.\nPartite: ' + r.matchesAdded + ' aggiunte.');
+    });
+  };
+  reader.readAsText(file);
+});
+
+onTap(btnSyncServer, function() {
   syncStatus.textContent = 'Sincronizzazione...';
   syncRostersFromServer(function(added) {
     if (added < 0) {
@@ -2153,11 +2360,10 @@ function showMatch() {
 // ═══════════════════════════════════════════
 // START MATCH
 // ═══════════════════════════════════════════
-btnStart.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  var homeIdx = parseInt(selHome.value);
-  var awayIdx = parseInt(selAway.value);
-  if (isNaN(homeIdx) || isNaN(awayIdx) || !rosters[homeIdx] || !rosters[awayIdx]) {
+onTap(btnStart, function() {
+  var homeIdx = findRosterIdx(selHome.value);
+  var awayIdx = findRosterIdx(selAway.value);
+  if (homeIdx < 0 || awayIdx < 0) {
     showAlert('Seleziona entrambe le squadre.');
     return;
   }
@@ -2177,9 +2383,13 @@ btnStart.addEventListener('pointerdown', function(e) {
   // Apply team colors from schema
   applyTeamColors(squadre.casa.schema, squadre.trasferta.schema);
 
-  // Read durations
-  var regMin = parseInt(durRegular.value) || 20;
-  var extMin = parseInt(durExtra.value) || 5;
+  // Read durations (e ricorda le scelte per la prossima partita)
+  var regMin = clampInt(durRegular.value, 1, 60, 20);
+  var extMin = clampInt(durExtra.value, 1, 30, 5);
+  durRegular.value = regMin;
+  durExtra.value = extMin;
+  setupPrefs = { casa: squadre.casa.nome, trasferta: squadre.trasferta.nome, durRegular: regMin, durExtra: extMin };
+  saveSetupPrefs(setupPrefs);
   PHASE_DURATIONS['1T'] = regMin * 60 * 1000;
   PHASE_DURATIONS['2T'] = regMin * 60 * 1000;
   PHASE_DURATIONS['1TS'] = extMin * 60 * 1000;
@@ -3095,8 +3305,7 @@ function renderSummary() {
   if (rigoriSection) summaryContent.appendChild(rigoriSection);
 }
 
-btnNewMatchSummary.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
+onTap(btnNewMatchSummary, function() {
   showSetup();
 });
 
@@ -3294,20 +3503,17 @@ function exitStoricoView() {
   showStorico();
 }
 
-btnStoricoSetup.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
+onTap(btnStoricoSetup, function() {
   showStorico();
 });
 
-btnBackStorico.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
+onTap(btnBackStorico, function() {
   hideStorico();
   screenSetup.classList.add('active');
   updateStoricoSetupButton();
 });
 
-btnClearStorico.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
+onTap(btnClearStorico, function() {
   askConfirm('Eliminare tutte le partite salvate? L\'operazione non è reversibile.',
     { okLabel: 'Elimina tutto', danger: true }).then(function(ok) {
     if (!ok) return;
@@ -3317,8 +3523,7 @@ btnClearStorico.addEventListener('pointerdown', function(e) {
   });
 });
 
-btnBackStoricoSummary.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
+onTap(btnBackStoricoSummary, function() {
   exitStoricoView();
 });
 
@@ -3428,8 +3633,7 @@ function exportSummary() {
   showCopyText('Copia il riepilogo:', text);
 }
 
-document.getElementById('btn-export-summary').addEventListener('pointerdown', function(e) {
-  e.preventDefault();
+onTap(document.getElementById('btn-export-summary'), function() {
   exportSummary();
 });
 
@@ -3763,7 +3967,7 @@ var savedTheme = null;
 try { savedTheme = localStorage.getItem(THEME_KEY); } catch(e) {}
 applyTheme(savedTheme || 'dark');
 
-btnThemeSetup.addEventListener('pointerdown', function(e) { e.preventDefault(); toggleTheme(); });
+onTap(btnThemeSetup, toggleTheme);
 btnThemeMatch.addEventListener('pointerdown', function(e) { e.preventDefault(); toggleTheme(); closeSettings(); });
 
 // ═══════════════════════════════════════════
@@ -3782,6 +3986,11 @@ if (saved) {
 // ═══════════════════════════════════════════
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw2.js');
+}
+
+// Chiede al browser di non cancellare localStorage in caso di poco spazio
+if (navigator.storage && navigator.storage.persist) {
+  try { navigator.storage.persist().catch(function() {}); } catch (e) {}
 }
 </script>
 
