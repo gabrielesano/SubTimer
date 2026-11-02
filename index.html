@@ -1364,6 +1364,84 @@ html, body {
 .btn-theme-toggle:active {
   background: var(--border-light);
 }
+
+/* ── MODAL (sostituisce confirm/prompt/alert nativi) ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: rgba(0,0,0,0.6);
+  align-items: center;
+  justify-content: center;
+  padding: 4vh 4vw;
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  padding: 3vh 3vw;
+  width: min(560px, 92vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5vh;
+}
+
+.modal-message {
+  font-size: clamp(16px, 2.4vh, 22px);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.35;
+  white-space: pre-line;
+}
+
+.modal-input, .modal-textarea {
+  width: 100%;
+  padding: 1.2vh 1.2vw;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--bg-inset);
+  color: var(--text-primary);
+  font-size: clamp(15px, 2.2vh, 20px);
+  font-family: inherit;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.modal-textarea {
+  height: 40vh;
+  resize: none;
+  font-size: clamp(13px, 1.8vh, 16px);
+}
+
+.modal-input.hidden, .modal-textarea.hidden { display: none; }
+
+.modal-actions {
+  display: flex;
+  gap: 1.5vw;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.modal-btn {
+  padding: 1.6vh 3.5vw;
+  min-height: 52px;
+  border: 2px solid var(--border-light);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: clamp(15px, 2.2vh, 20px);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.modal-btn.primary { background: #22c55e; border-color: #22c55e; color: #000; }
+.modal-btn.danger { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+.modal-btn:active { filter: brightness(0.85); }
 </style>
 </head>
 <body>
@@ -1576,6 +1654,16 @@ html, body {
 <!-- ══ TOAST ══ -->
 <div id="toast" class="toast"></div>
 
+<!-- ══ MODAL (conferme, input testo, avvisi) ══ -->
+<div id="modal" class="modal-overlay">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <div id="modal-message" class="modal-message"></div>
+    <input id="modal-input" class="modal-input hidden" type="text" autocomplete="off">
+    <textarea id="modal-textarea" class="modal-textarea hidden" readonly></textarea>
+    <div id="modal-actions" class="modal-actions"></div>
+  </div>
+</div>
+
 <!-- ══ CARD OVERLAY ══ -->
 <div id="card-overlay" class="overlay">
   <div id="card-overlay-title" class="overlay-title"></div>
@@ -1594,6 +1682,193 @@ html, body {
 </div>
 
 <script>
+// ═══════════════════════════════════════════
+// MODAL (sostituisce confirm / prompt / alert nativi)
+// ═══════════════════════════════════════════
+// Un tap che apre un overlay (pointerdown) può generare subito dopo un
+// "click" sul nuovo contenuto sotto il dito (tocco fantasma, soprattutto
+// su iOS). Per questo i click arrivati entro GHOST_GUARD_MS dall'apertura
+// di un overlay vengono ignorati.
+var GHOST_GUARD_MS = 350;
+
+var modalEl = document.getElementById('modal');
+var modalMessage = document.getElementById('modal-message');
+var modalInput = document.getElementById('modal-input');
+var modalTextarea = document.getElementById('modal-textarea');
+var modalActions = document.getElementById('modal-actions');
+var modalResolve = null;
+var modalCancelValue = null;
+var modalDefaultBtn = null;
+var modalOpenedAt = 0;
+
+// opts: { message, input: { value, placeholder } | null, text: string | null,
+//         buttons: [{ label, value (o funzione), kind: 'primary'|'danger'|'' , isDefault }],
+//         cancelValue }
+// Ritorna una Promise risolta con il value del bottone premuto.
+function openModal(opts) {
+  if (modalResolve) closeModal(modalCancelValue);
+  return new Promise(function(resolve) {
+    modalResolve = resolve;
+    modalCancelValue = opts.cancelValue;
+    modalMessage.textContent = opts.message || '';
+
+    modalInput.classList.toggle('hidden', !opts.input);
+    if (opts.input) {
+      modalInput.value = opts.input.value || '';
+      modalInput.placeholder = opts.input.placeholder || '';
+    }
+    modalTextarea.classList.toggle('hidden', opts.text == null);
+    modalTextarea.value = opts.text != null ? opts.text : '';
+
+    modalActions.innerHTML = '';
+    modalDefaultBtn = null;
+    opts.buttons.forEach(function(b) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'modal-btn' + (b.kind ? ' ' + b.kind : '');
+      btn.textContent = b.label;
+      var pick = function() {
+        closeModal(typeof b.value === 'function' ? b.value() : b.value);
+      };
+      btn.addEventListener('click', function() {
+        if (Date.now() - modalOpenedAt < GHOST_GUARD_MS) return;
+        pick();
+      });
+      if (b.isDefault) modalDefaultBtn = pick;
+      modalActions.appendChild(btn);
+    });
+
+    modalOpenedAt = Date.now();
+    modalEl.classList.add('open');
+    if (opts.input) {
+      modalInput.focus();
+      modalInput.select();
+    } else if (opts.text != null) {
+      modalTextarea.focus();
+      modalTextarea.select();
+    }
+  });
+}
+
+function closeModal(value) {
+  modalEl.classList.remove('open');
+  var r = modalResolve;
+  modalResolve = null;
+  modalDefaultBtn = null;
+  if (r) r(value);
+}
+
+function isModalOpen() { return modalEl.classList.contains('open'); }
+
+document.addEventListener('keydown', function(e) {
+  if (!isModalOpen()) return;
+  if (e.key === 'Escape') { e.preventDefault(); closeModal(modalCancelValue); }
+  else if (e.key === 'Enter' && modalDefaultBtn && e.target !== modalTextarea) {
+    e.preventDefault();
+    modalDefaultBtn();
+  }
+});
+
+// Conferma sì/no. opts: { okLabel, cancelLabel, danger }
+function askConfirm(message, opts) {
+  opts = opts || {};
+  return openModal({
+    message: message,
+    buttons: [
+      { label: opts.cancelLabel || 'Annulla', value: false },
+      { label: opts.okLabel || 'Conferma', value: true, kind: opts.danger ? 'danger' : 'primary', isDefault: true }
+    ],
+    cancelValue: false
+  });
+}
+
+// Input di testo: risolve con la stringa inserita o null se annullato.
+function askText(message, defaultValue, okLabel) {
+  return openModal({
+    message: message,
+    input: { value: defaultValue || '' },
+    buttons: [
+      { label: 'Annulla', value: null },
+      { label: okLabel || 'OK', value: function() { return modalInput.value; }, kind: 'primary', isDefault: true }
+    ],
+    cancelValue: null
+  });
+}
+
+function showAlert(message) {
+  return openModal({
+    message: message,
+    buttons: [{ label: 'OK', value: true, kind: 'primary', isDefault: true }],
+    cancelValue: true
+  });
+}
+
+// Mostra un testo lungo selezionabile (fallback quando share/clipboard mancano).
+function showCopyText(message, text) {
+  return openModal({
+    message: message,
+    text: text,
+    buttons: [{ label: 'Chiudi', value: true, kind: 'primary', isDefault: true }],
+    cancelValue: true
+  });
+}
+
+// ═══════════════════════════════════════════
+// HELPER CONDIVISI (punteggi, eventi, nomi)
+// ═══════════════════════════════════════════
+function scoreOf(marc) {
+  var c = 0, t = 0;
+  for (var i = 0; i < marc.length; i++) {
+    if (marc[i].squadra === 'casa') c++; else t++;
+  }
+  return { casa: c, trasferta: t };
+}
+
+function rigoriScoreOf(arr) {
+  var c = 0, t = 0;
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i].esito === 'gol') {
+      if (arr[i].squadra === 'casa') c++; else t++;
+    }
+  }
+  return { casa: c, trasferta: t };
+}
+
+// Formatta il minuto di un evento.
+function formatMinute(ev) {
+  return ev.minutoGioco + "'";
+}
+
+// Unisce gol e cartellini di una partita (live o storico), opzionalmente
+// filtrati per fase, ordinati per fase e poi per minuto.
+// Ritorna [{ kind: 'goal'|'giallo'|'rosso', data }].
+function collectEvents(match, phaseKey) {
+  var events = [];
+  var marc = match.marcatori || [];
+  var cart = match.cartellini || [];
+  for (var i = 0; i < marc.length; i++) {
+    if (!phaseKey || marc[i].fase === phaseKey) events.push({ kind: 'goal', data: marc[i] });
+  }
+  for (var j = 0; j < cart.length; j++) {
+    if (!phaseKey || cart[j].fase === phaseKey) events.push({ kind: cart[j].tipo, data: cart[j] });
+  }
+  events.sort(function(a, b) {
+    var pa = PHASES.indexOf(a.data.fase);
+    var pb = PHASES.indexOf(b.data.fase);
+    if (pa !== pb) return pa - pb;
+    if (a.data.minutoGioco !== b.data.minutoGioco) return a.data.minutoGioco - b.data.minutoGioco;
+    return (a.data.recupero || 0) - (b.data.recupero || 0);
+  });
+  return events;
+}
+
+// Nome giocatore per la visualizzazione. numPrefix: '' oppure '#'.
+function playerLabel(giocatore, fallback, numPrefix) {
+  var pg = parsePlayer(giocatore || '');
+  if (pg.numero) return (numPrefix || '') + pg.numero + ' ' + pg.nome;
+  return pg.nome || fallback;
+}
+
 // ═══════════════════════════════════════════
 // ROSTER STORAGE (localStorage)
 // ═══════════════════════════════════════════
@@ -1793,23 +2068,26 @@ btnSaveRoster.addEventListener('pointerdown', function(e) {
 
 btnNewTeam.addEventListener('pointerdown', function(e) {
   e.preventDefault();
-  var nome = prompt('Nome della squadra:');
-  if (!nome || !nome.trim()) return;
-  rosters.push({ nome: nome.trim(), rosa: [] });
-  saveRosters(rosters);
-  refreshSetup();
-  rosterSel.value = rosters.length - 1;
-  loadRosterEditor();
+  askText('Nome della squadra:', '', 'Crea').then(function(nome) {
+    if (!nome || !nome.trim()) return;
+    rosters.push({ nome: nome.trim(), rosa: [] });
+    saveRosters(rosters);
+    refreshSetup();
+    rosterSel.value = rosters.length - 1;
+    loadRosterEditor();
+  });
 });
 
 btnDelTeam.addEventListener('pointerdown', function(e) {
   e.preventDefault();
   var idx = parseInt(rosterSel.value);
   if (isNaN(idx) || !rosters[idx]) return;
-  if (!confirm('Eliminare "' + rosters[idx].nome + '"?')) return;
-  rosters.splice(idx, 1);
-  saveRosters(rosters);
-  refreshSetup();
+  askConfirm('Eliminare "' + rosters[idx].nome + '"?', { okLabel: 'Elimina', danger: true }).then(function(ok) {
+    if (!ok || !rosters[idx]) return;
+    rosters.splice(idx, 1);
+    saveRosters(rosters);
+    refreshSetup();
+  });
 });
 
 btnImport.addEventListener('pointerdown', function(e) {
@@ -1832,7 +2110,7 @@ btnImport.addEventListener('pointerdown', function(e) {
         refreshSetup();
         importJson.value = '';
       }
-    } catch (err) { alert('File JSON non valido'); }
+    } catch (err) { showAlert('File JSON non valido'); }
   };
   reader.readAsText(file);
 });
@@ -1880,11 +2158,11 @@ btnStart.addEventListener('pointerdown', function(e) {
   var homeIdx = parseInt(selHome.value);
   var awayIdx = parseInt(selAway.value);
   if (isNaN(homeIdx) || isNaN(awayIdx) || !rosters[homeIdx] || !rosters[awayIdx]) {
-    alert('Seleziona entrambe le squadre.');
+    showAlert('Seleziona entrambe le squadre.');
     return;
   }
   if (homeIdx === awayIdx) {
-    alert('Seleziona due squadre diverse.');
+    showAlert('Seleziona due squadre diverse.');
     return;
   }
 
@@ -2451,13 +2729,7 @@ var rUndo = document.getElementById('r-undo');
 var rWinner = document.getElementById('r-winner');
 
 function getRigoriScore() {
-  var c = 0, t = 0;
-  for (var i = 0; i < rigori.length; i++) {
-    if (rigori[i].esito === 'gol') {
-      if (rigori[i].squadra === 'casa') c++; else t++;
-    }
-  }
-  return { casa: c, trasferta: t };
+  return rigoriScoreOf(rigori);
 }
 
 function getRigoriTurn() {
@@ -2584,43 +2856,22 @@ rErr.addEventListener('pointerdown', function(e) { e.preventDefault(); addRigore
 rUndo.addEventListener('pointerdown', function(e) { e.preventDefault(); undoRigore(); });
 
 // ── Score ──
-function getScore() {
-  var casa = 0, trasferta = 0;
-  for (var i = 0; i < marcatori.length; i++) {
-    if (marcatori[i].squadra === 'casa') casa++; else trasferta++;
-  }
-  return { casa: casa, trasferta: trasferta };
-}
-
 function updateScoreboard() {
-  var score = getScore();
+  var score = scoreOf(marcatori);
   scoreHome.textContent = score.casa;
   scoreAway.textContent = score.trasferta;
   scorersHome.innerHTML = '';
   scorersAway.innerHTML = '';
 
-  // Unisci gol e cartellini e ordina cronologicamente per fase + minuto
-  var events = [];
-  for (var i = 0; i < marcatori.length; i++) {
-    events.push({ kind: 'goal', data: marcatori[i] });
-  }
-  for (var j = 0; j < cartellini.length; j++) {
-    events.push({ kind: cartellini[j].tipo, data: cartellini[j] });
-  }
-  events.sort(function(a, b) {
-    var pa = PHASES.indexOf(a.data.fase);
-    var pb = PHASES.indexOf(b.data.fase);
-    if (pa !== pb) return pa - pb;
-    return a.data.minutoGioco - b.data.minutoGioco;
-  });
+  // Gol e cartellini in ordine cronologico (fase + minuto)
+  var events = collectEvents({ marcatori: marcatori, cartellini: cartellini });
 
   for (var k = 0; k < events.length; k++) {
     var ev = events[k];
     var li = document.createElement('li');
     var phaseLabel = PHASE_SHORT[ev.data.fase] || '';
-    var timeStr = ev.data.minutoGioco + "'" + (phaseLabel ? ' ' + phaseLabel : '');
-    var pg = parsePlayer(ev.data.giocatore || '');
-    var displayName = pg.numero ? pg.numero + ' ' + pg.nome : (pg.nome || 'Gol');
+    var timeStr = formatMinute(ev.data) + (phaseLabel ? ' ' + phaseLabel : '');
+    var displayName = playerLabel(ev.data.giocatore, 'Gol', '');
     if (ev.kind === 'goal') {
       li.textContent = displayName + ' — ' + timeStr;
       li.className = 'scorer-goal';
@@ -2681,18 +2932,7 @@ function currentSummaryCtx() {
 function buildPhaseSection(phaseKey) {
   var ctx = currentSummaryCtx();
   var label = PHASE_LABELS[phaseKey];
-  var events = [];
-  for (var i = 0; i < ctx.marcatori.length; i++) {
-    if (ctx.marcatori[i].fase === phaseKey) {
-      events.push({ kind: 'goal', data: ctx.marcatori[i] });
-    }
-  }
-  for (var j = 0; j < ctx.cartellini.length; j++) {
-    if (ctx.cartellini[j].fase === phaseKey) {
-      events.push({ kind: ctx.cartellini[j].tipo, data: ctx.cartellini[j] });
-    }
-  }
-  events.sort(function(a, b) { return a.data.minutoGioco - b.data.minutoGioco; });
+  var events = collectEvents(ctx, phaseKey);
 
   var section = document.createElement('div');
   section.className = 'summary-phase';
@@ -2721,13 +2961,12 @@ function buildPhaseSection(phaseKey) {
 
     var minute = document.createElement('span');
     minute.className = 'summary-minute';
-    minute.textContent = ev.data.minutoGioco + "'";
+    minute.textContent = formatMinute(ev.data);
     row.appendChild(minute);
 
-    var pgs = parsePlayer(ev.data.giocatore || '');
     var name = document.createElement('span');
     name.className = 'summary-name';
-    name.textContent = pgs.numero ? pgs.numero + ' ' + pgs.nome : (pgs.nome || '—');
+    name.textContent = playerLabel(ev.data.giocatore, '—', '');
     row.appendChild(name);
 
     var typeEl = document.createElement('span');
@@ -2810,36 +3049,18 @@ function buildRigoriSection() {
 // Decide quali fasi mostrare: 1T e 2T sempre; 1TS/2TS se contengono eventi
 // oppure se sono stati raggiunti i rigori (implica supplementari giocati).
 function phaseHasAnyEvent(phaseKey) {
-  var ctx = currentSummaryCtx();
-  for (var i = 0; i < ctx.marcatori.length; i++) {
-    if (ctx.marcatori[i].fase === phaseKey) return true;
-  }
-  for (var j = 0; j < ctx.cartellini.length; j++) {
-    if (ctx.cartellini[j].fase === phaseKey) return true;
-  }
-  return false;
+  return collectEvents(currentSummaryCtx(), phaseKey).length > 0;
 }
 
-// Score helper che legge dal contesto (vs getScore globale che legge da live)
-function getScoreFromCtx() {
-  var ctx = currentSummaryCtx();
-  var casa = 0, trasferta = 0;
-  for (var i = 0; i < ctx.marcatori.length; i++) {
-    if (ctx.marcatori[i].squadra === 'casa') casa++; else trasferta++;
+// Fasi da mostrare in riepilogo/export: 1T e 2T sempre, supplementari se
+// contengono eventi o se si è arrivati ai rigori.
+function summaryPhases(ctx) {
+  var phases = ['1T', '2T'];
+  var rig = ctx.rigori || [];
+  if (rig.length > 0 || phaseHasAnyEvent('1TS') || phaseHasAnyEvent('2TS')) {
+    phases.push('1TS', '2TS');
   }
-  return { casa: casa, trasferta: trasferta };
-}
-
-function getRigoriScoreFromCtx() {
-  var ctx = currentSummaryCtx();
-  var rigoriCtx = ctx.rigori || [];
-  var c = 0, t = 0;
-  for (var i = 0; i < rigoriCtx.length; i++) {
-    if (rigoriCtx[i].esito === 'gol') {
-      if (rigoriCtx[i].squadra === 'casa') c++; else t++;
-    }
-  }
-  return { casa: c, trasferta: t };
+  return phases;
 }
 
 function renderSummary() {
@@ -2847,14 +3068,14 @@ function renderSummary() {
   summaryNameHome.textContent = ctx.squadre.casa.nome;
   summaryNameAway.textContent = ctx.squadre.trasferta.nome;
 
-  var score = getScoreFromCtx();
+  var score = scoreOf(ctx.marcatori);
   summaryScoreHome.textContent = score.casa;
   summaryScoreAway.textContent = score.trasferta;
 
   // Indicazione rigori (sotto il punteggio) se presenti
   var rigoriCtx = ctx.rigori || [];
   if (rigoriCtx.length > 0) {
-    var rs = getRigoriScoreFromCtx();
+    var rs = rigoriScoreOf(rigoriCtx);
     summaryRigoriScore.textContent =
       '(dopo i rigori: ' + ctx.squadre.casa.nome + ' ' + rs.casa +
       ' — ' + rs.trasferta + ' ' + ctx.squadre.trasferta.nome + ')';
@@ -2864,9 +3085,7 @@ function renderSummary() {
 
   summaryContent.innerHTML = '';
 
-  var suppPlayed = rigoriCtx.length > 0 || phaseHasAnyEvent('1TS') || phaseHasAnyEvent('2TS');
-  var phasesToShow = ['1T', '2T'];
-  if (suppPlayed) phasesToShow.push('1TS', '2TS');
+  var phasesToShow = summaryPhases(ctx);
 
   for (var i = 0; i < phasesToShow.length; i++) {
     summaryContent.appendChild(buildPhaseSection(phasesToShow[i]));
@@ -2949,25 +3168,6 @@ function formatStoricoDate(ts) {
     ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
 
-// Punteggio da un array marcatori (per entry dello storico)
-function scoreFromMarcatori(marc) {
-  var c = 0, t = 0;
-  for (var i = 0; i < marc.length; i++) {
-    if (marc[i].squadra === 'casa') c++; else t++;
-  }
-  return { casa: c, trasferta: t };
-}
-
-function rigoriScoreFromArr(arr) {
-  var c = 0, t = 0;
-  for (var i = 0; i < arr.length; i++) {
-    if (arr[i].esito === 'gol') {
-      if (arr[i].squadra === 'casa') c++; else t++;
-    }
-  }
-  return { casa: c, trasferta: t };
-}
-
 // ── Schermata storico ──
 var screenStorico = document.getElementById('screen-storico');
 var storicoListEl = document.getElementById('storico-list');
@@ -3025,7 +3225,7 @@ function buildStoricoRow(entry) {
   homeName.textContent = entry.squadre.casa.nome;
   matchEl.appendChild(homeName);
 
-  var sc = scoreFromMarcatori(entry.marcatori || []);
+  var sc = scoreOf(entry.marcatori || []);
   var scoreEl = document.createElement('span');
   scoreEl.className = 'storico-score-numbers';
   scoreEl.textContent = sc.casa + ' — ' + sc.trasferta;
@@ -3038,7 +3238,7 @@ function buildStoricoRow(entry) {
 
   var rigArr = entry.rigori || [];
   if (rigArr.length > 0) {
-    var rs = rigoriScoreFromArr(rigArr);
+    var rs = rigoriScoreOf(rigArr);
     var suf = document.createElement('span');
     suf.className = 'storico-rigori-suffix';
     suf.textContent = '(' + rs.casa + '-' + rs.trasferta + ' dcr)';
@@ -3053,11 +3253,12 @@ function buildStoricoRow(entry) {
   delBtn.setAttribute('aria-label', 'Elimina partita');
   delBtn.addEventListener('click', function(e) {
     e.stopPropagation();
-    if (confirm('Eliminare questa partita dallo storico?')) {
+    askConfirm('Eliminare questa partita dallo storico?', { okLabel: 'Elimina', danger: true }).then(function(ok) {
+      if (!ok) return;
       deleteFromStorico(entry.id);
       renderStoricoList();
       updateStoricoSetupButton();
-    }
+    });
   });
   row.appendChild(delBtn);
 
@@ -3107,11 +3308,13 @@ btnBackStorico.addEventListener('pointerdown', function(e) {
 
 btnClearStorico.addEventListener('pointerdown', function(e) {
   e.preventDefault();
-  if (confirm('Eliminare tutte le partite salvate? L\'operazione non è reversibile.')) {
+  askConfirm('Eliminare tutte le partite salvate? L\'operazione non è reversibile.',
+    { okLabel: 'Elimina tutto', danger: true }).then(function(ok) {
+    if (!ok) return;
     clearStoricoAll();
     renderStoricoList();
     updateStoricoSetupButton();
-  }
+  });
 });
 
 btnBackStoricoSummary.addEventListener('pointerdown', function(e) {
@@ -3136,14 +3339,14 @@ function buildSummaryText() {
   var nomeAway = ctx.squadre.trasferta.nome;
   var tagCasa = teamTag(nomeCasa);
   var tagAway = teamTag(nomeAway);
-  var sc = getScoreFromCtx();
+  var sc = scoreOf(ctx.marcatori);
   var rigoriCtx = ctx.rigori || [];
 
   var lines = [];
   lines.push('⚽ ' + nomeCasa + ' ' + sc.casa + ' — ' + sc.trasferta + ' ' + nomeAway);
 
   if (rigoriCtx.length > 0) {
-    var rs = getRigoriScoreFromCtx();
+    var rs = rigoriScoreOf(rigoriCtx);
     var winner = rs.casa > rs.trasferta ? nomeCasa : (rs.trasferta > rs.casa ? nomeAway : '');
     var rigoriLine = '🎯 Rigori: ' + rs.casa + ' — ' + rs.trasferta;
     if (winner) rigoriLine += ' (' + winner + ')';
@@ -3151,34 +3354,23 @@ function buildSummaryText() {
   }
 
   // Sezioni per fase (in ordine PT, ST, 1TS, 2TS)
-  var phases = ['1T', '2T'];
-  if (rigoriCtx.length > 0 || phaseHasAnyEvent('1TS') || phaseHasAnyEvent('2TS')) {
-    phases.push('1TS', '2TS');
-  }
+  var phases = summaryPhases(ctx);
 
   for (var p = 0; p < phases.length; p++) {
     var ph = phases[p];
-    var evs = [];
-    for (var i = 0; i < ctx.marcatori.length; i++) {
-      if (ctx.marcatori[i].fase === ph) evs.push({ kind: 'goal', data: ctx.marcatori[i] });
-    }
-    for (var j = 0; j < ctx.cartellini.length; j++) {
-      if (ctx.cartellini[j].fase === ph) evs.push({ kind: ctx.cartellini[j].tipo, data: ctx.cartellini[j] });
-    }
+    var evs = collectEvents(ctx, ph);
     if (evs.length === 0) continue; // omettiamo sezioni vuote
-    evs.sort(function(a, b) { return a.data.minutoGioco - b.data.minutoGioco; });
 
     lines.push('');
     lines.push(PHASE_LABELS[ph].toUpperCase());
     for (var k = 0; k < evs.length; k++) {
       var ev = evs[k];
       var tag = ev.data.squadra === 'casa' ? tagCasa : tagAway;
-      var pge = parsePlayer(ev.data.giocatore || '');
-      var nomeGioc = pge.numero ? '#' + pge.numero + ' ' + pge.nome : (pge.nome || '—');
+      var nomeGioc = playerLabel(ev.data.giocatore, '—', '#');
       var prefix = '';
       if (ev.kind === 'giallo') prefix = '🟨 ';
       else if (ev.kind === 'rosso') prefix = '🟥 ';
-      lines.push(' ' + ev.data.minutoGioco + "' " + prefix + nomeGioc + ' (' + tag + ')');
+      lines.push(' ' + formatMinute(ev.data) + ' ' + prefix + nomeGioc + ' (' + tag + ')');
     }
   }
 
@@ -3232,8 +3424,8 @@ function exportSummary() {
       return;
     } catch (e) {}
   }
-  // Ultimo fallback: prompt con il testo selezionabile
-  try { prompt('Copia il riepilogo:', text); } catch (e) {}
+  // Ultimo fallback: testo selezionabile in una finestra
+  showCopyText('Copia il riepilogo:', text);
 }
 
 document.getElementById('btn-export-summary').addEventListener('pointerdown', function(e) {
@@ -3497,12 +3689,14 @@ function goToPhase(newPhase) {
 function nextPhase() {
   var idx = PHASES.indexOf(fase);
   if (idx >= PHASES.length - 1) return;
-  if (!confirm('Passare alla fase successiva?')) return;
-  var score = getScore();
-  var tied = score.casa === score.trasferta;
-  if (fase === '2T' && !tied) { goToPhase('FINITA'); return; }
-  if (fase === '2TS' && !tied) { goToPhase('FINITA'); return; }
-  goToPhase(PHASES[idx + 1]);
+  askConfirm('Passare alla fase successiva?', { okLabel: 'Fase successiva' }).then(function(ok) {
+    if (!ok || PHASES.indexOf(fase) !== idx) return;
+    var score = scoreOf(marcatori);
+    var tied = score.casa === score.trasferta;
+    if (fase === '2T' && !tied) { goToPhase('FINITA'); return; }
+    if (fase === '2TS' && !tied) { goToPhase('FINITA'); return; }
+    goToPhase(PHASES[idx + 1]);
+  });
 }
 
 function prevPhase() {
