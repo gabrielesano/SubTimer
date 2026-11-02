@@ -901,6 +901,26 @@ html:not([data-kit-away]) .kit-away { display: none; }
 .btn-rigore.gol { background: #22c55e; color: #000; }
 .btn-rigore.errore { background: #ef4444; color: #fff; }
 
+.btn-rigore-shooter {
+  padding: 1.2vh 2.5vw;
+  min-height: 48px;
+  border: 2px dashed var(--border-light);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: clamp(13px, 1.9vh, 18px);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-rigore-shooter.chosen {
+  border-style: solid;
+  border-color: #d4a017;
+  color: var(--text-primary);
+}
+
+.btn-rigore-shooter.hidden { display: none; }
+
 .btn-rigore-undo {
   padding: 1vh 2vw;
   border: 2px solid var(--border-light);
@@ -1086,7 +1106,7 @@ html:not([data-kit-away]) .kit-away { display: none; }
   display: flex;
   flex-direction: column;
   gap: 0.3vh;
-  max-width: 420px;
+  max-width: 640px;
   margin: 0 auto;
 }
 
@@ -1108,6 +1128,13 @@ html:not([data-kit-away]) .kit-away { display: none; }
 .summary-rigori-row .r-outcome {
   font-weight: 700;
   letter-spacing: 0.04em;
+}
+
+.summary-rigori-row .r-shooter-name {
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0;
+  margin: 0 0.5em;
 }
 
 .summary-rigori-row .r-outcome.home { text-align: right; }
@@ -1691,6 +1718,7 @@ html:not([data-kit-away]) .kit-away { display: none; }
       </div>
     </div>
     <div id="r-sequence" class="rigori-sequence"></div>
+    <button id="r-shooter" class="btn-rigore-shooter">Tiratore: scegli (facoltativo)</button>
     <div class="rigori-buttons">
       <button id="r-gol" class="btn-rigore gol">GOL</button>
       <div id="r-turn-label" class="r-label"></div>
@@ -2615,6 +2643,8 @@ onTap(btnStart, function() {
   actionOrder = [];
   rigori = [];
   undoStack = [];
+  phaseHistory = [];
+  pendingShooter = null;
   storicoSavedId = null;
 
   // Update UI
@@ -2664,6 +2694,9 @@ var undoStack = []; // redo stack: [{ type: 'goal'|'card', event: {...} }]
 
 var MATCH_KEY = 'subbuteo:matchState';
 var storicoSavedId = null; // id dell'entry storico se la partita corrente è già stata salvata
+// Fasi lasciate andando avanti, per tornare indietro alla fase giusta e col
+// tempo che aveva: [{ fase, elapsedMs }]
+var phaseHistory = [];
 var matchActive = false;   // true tra "Inizia partita" (o ripristino) e il ritorno al setup
 var lastSaveAt = 0;
 var AUTOSAVE_MS = 5000;    // salvataggio periodico mentre il timer gira
@@ -2687,6 +2720,7 @@ function saveMatch() {
     actionOrder: actionOrder,
     rigori: rigori,
     phaseDurations: PHASE_DURATIONS,
+    phaseHistory: phaseHistory,
     storicoSavedId: storicoSavedId
   };
   try {
@@ -2737,6 +2771,8 @@ function restoreMatch(data) {
   cartellini = data.cartellini || [];
   rigori = data.rigori || [];
   storicoSavedId = data.storicoSavedId || null;
+  phaseHistory = Array.isArray(data.phaseHistory) ? data.phaseHistory.slice() : [];
+  pendingShooter = null;
   // Backfill actionOrder se il salvataggio è precedente all'introduzione dei
   // cartellini: assume tutti i gol prima, poi i cartellini (ordine indicativo).
   if (Array.isArray(data.actionOrder)) {
@@ -3196,31 +3232,25 @@ function getRigoriTurn() {
 }
 
 function getRigoriWinner() {
-  var sc = getRigoriScore();
-  var total = rigori.length;
-  var roundsDone = Math.floor(total / 2);
-  // both teams must have taken same number of kicks to evaluate
-  if (total % 2 !== 0) return null;
-  if (roundsDone < 1) return null;
+  return rigoriWinnerOf(rigori);
+}
 
-  // In first 5 rounds: check if one team can't catch up
-  if (roundsDone <= 5) {
-    var remaining = 5 - roundsDone;
-    // home can't catch up
-    if (sc.trasferta > sc.casa + remaining) return 'trasferta';
-    // away can't catch up
-    if (sc.casa > sc.trasferta + remaining) return 'casa';
-    // after 5 rounds, if not tied, we have a winner
-    if (roundsDone === 5 && sc.casa !== sc.trasferta) {
-      return sc.casa > sc.trasferta ? 'casa' : 'trasferta';
-    }
+// Vincitore della serie di rigori, o null se non ancora deciso.
+// Nei primi 5 tiri per squadra la serie finisce appena una squadra non può
+// più essere raggiunta, anche a metà turno (es. dopo il tiro della casa).
+// Oltre i 5 (ad oltranza) si decide solo a parità di tiri.
+function rigoriWinnerOf(arr) {
+  var kh = 0, ka = 0, h = 0, a = 0;
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i].squadra === 'casa') { kh++; if (arr[i].esito === 'gol') h++; }
+    else { ka++; if (arr[i].esito === 'gol') a++; }
   }
-
-  // Sudden death (after round 5): if scores differ after equal kicks
-  if (roundsDone > 5 && sc.casa !== sc.trasferta) {
-    return sc.casa > sc.trasferta ? 'casa' : 'trasferta';
+  if (kh <= 5 && ka <= 5) {
+    if (h > a + (5 - ka)) return 'casa';
+    if (a > h + (5 - kh)) return 'trasferta';
+    return null;
   }
-
+  if (kh === ka && h !== a) return h > a ? 'casa' : 'trasferta';
   return null;
 }
 
@@ -3282,19 +3312,53 @@ function updateRigoriUI() {
     rTurnLabel.textContent = '';
     rGol.disabled = true;
     rErr.disabled = true;
+    rShooter.classList.add('hidden');
   } else {
     rWinner.textContent = '';
     var turn = getRigoriTurn();
     rTurnLabel.textContent = turn === 'casa' ? squadre.casa.nome : squadre.trasferta.nome;
     rGol.disabled = false;
     rErr.disabled = false;
+    var rosa = turn === 'casa' ? squadre.casa.rosa : squadre.trasferta.rosa;
+    rShooter.classList.toggle('hidden', !rosa || rosa.length === 0);
+    rShooter.classList.toggle('chosen', !!pendingShooter);
+    rShooter.textContent = pendingShooter
+      ? 'Tiratore: ' + playerLabel(pendingShooter, '', '')
+      : 'Tiratore: scegli (facoltativo)';
   }
+}
+
+// Tiratore scelto per il prossimo rigore (facoltativo)
+var pendingShooter = null;
+var rShooter = document.getElementById('r-shooter');
+
+// Badge "✓" sui giocatori che hanno già tirato
+function shooterDecorator(squadra) {
+  return function(giocatore) {
+    var n = 0;
+    for (var i = 0; i < rigori.length; i++) {
+      if (rigori[i].squadra === squadra && rigori[i].giocatore === giocatore) n++;
+    }
+    return n ? { text: n > 1 ? '✓×' + n : '✓' } : null;
+  };
+}
+
+function openShooterPicker() {
+  if (getRigoriWinner()) return;
+  var turn = getRigoriTurn();
+  var rosa = turn === 'casa' ? squadre.casa.rosa : squadre.trasferta.rosa;
+  var nome = turn === 'casa' ? squadre.casa.nome : squadre.trasferta.nome;
+  openPlayerPicker('TIRATORE ' + nome, rosa, function(giocatore) {
+    pendingShooter = giocatore;
+    updateRigoriUI();
+  }, shooterDecorator(turn));
 }
 
 function addRigore(esito) {
   if (getRigoriWinner()) return;
   var turn = getRigoriTurn();
-  rigori.push({ squadra: turn, giocatore: '', esito: esito });
+  rigori.push({ squadra: turn, giocatore: pendingShooter || '', esito: esito });
+  pendingShooter = null;
   playWhistle('short');
   if (esito === 'gol') playCrowdCheer();
   updateRigoriUI();
@@ -3304,9 +3368,12 @@ function addRigore(esito) {
 function undoRigore() {
   if (rigori.length === 0) return;
   rigori.pop();
+  pendingShooter = null;
   updateRigoriUI();
   saveMatch();
 }
+
+rShooter.addEventListener('click', function(e) { e.preventDefault(); openShooterPicker(); });
 
 rGol.addEventListener('pointerdown', function(e) { e.preventDefault(); addRigore('gol'); });
 rErr.addEventListener('pointerdown', function(e) { e.preventDefault(); addRigore('errore'); });
@@ -3495,6 +3562,12 @@ function buildRigoriSection() {
     var homeEl = document.createElement('span');
     homeEl.className = 'r-outcome home ' + (homeKick ? (homeKick.esito === 'gol' ? 'gol' : 'err') : 'pending');
     homeEl.textContent = homeKick ? (homeKick.esito === 'gol' ? 'GOL' : 'ERR') : '—';
+    if (homeKick && homeKick.giocatore) {
+      var hName = document.createElement('span');
+      hName.className = 'r-shooter-name';
+      hName.textContent = playerLabel(homeKick.giocatore, '', '');
+      homeEl.insertBefore(hName, homeEl.firstChild);
+    }
     row.appendChild(homeEl);
 
     var num = document.createElement('span');
@@ -3506,6 +3579,12 @@ function buildRigoriSection() {
     var awayEl = document.createElement('span');
     awayEl.className = 'r-outcome away ' + (awayKick ? (awayKick.esito === 'gol' ? 'gol' : 'err') : 'pending');
     awayEl.textContent = awayKick ? (awayKick.esito === 'gol' ? 'GOL' : 'ERR') : '—';
+    if (awayKick && awayKick.giocatore) {
+      var aName = document.createElement('span');
+      aName.className = 'r-shooter-name';
+      aName.textContent = playerLabel(awayKick.giocatore, '', '');
+      awayEl.appendChild(aName);
+    }
     row.appendChild(awayEl);
 
     var dotA = document.createElement('span');
@@ -3849,8 +3928,8 @@ function buildSummaryText() {
     for (var r = 0; r < totalRounds; r++) {
       var hk = rigoriCtx[r * 2];
       var ak = rigoriCtx[r * 2 + 1];
-      var hSym = hk ? (hk.esito === 'gol' ? '✓' : '✗') : '—';
-      var aSym = ak ? (ak.esito === 'gol' ? '✓' : '✗') : '—';
+      var hSym = hk ? (hk.esito === 'gol' ? '✓' : '✗') + (hk.giocatore ? ' ' + playerLabel(hk.giocatore, '', '#') : '') : '—';
+      var aSym = ak ? (ak.esito === 'gol' ? '✓' : '✗') + (ak.giocatore ? ' ' + playerLabel(ak.giocatore, '', '#') : '') : '—';
       lines.push(' ' + (r + 1) + '. ' + tagCasa + ' ' + hSym + ' — ' + tagAway + ' ' + aSym);
     }
   }
@@ -4035,17 +4114,26 @@ var overlayGrid = document.getElementById('overlay-grid');
 var overlayCancel = document.getElementById('overlay-cancel');
 var pendingGoal = null; // { squadra, minute: { minutoGioco, recupero }, fase }
 
+// Overlay di scelta giocatore (usato per marcatore e tiratore dei rigori)
+function openPlayerPicker(title, rosa, onPick, decorate) {
+  overlayTitle.textContent = title;
+  overlayOpenedAt = Date.now();
+  populatePlayerGrid(overlayGrid, rosa, function(giocatore) {
+    goalOverlay.classList.remove('open');
+    onPick(giocatore);
+  }, decorate);
+  goalOverlay.classList.add('open');
+}
+
 function openGoalOverlay(squadra) {
-  if (fase === 'FINITA') return;
+  if (fase === 'FINITA' || fase === 'RIGORI') return;
   var minuto = getCurrentMinute();
   var rosa = squadra === 'casa' ? squadre.casa.rosa : squadre.trasferta.rosa;
   var nome = squadra === 'casa' ? squadre.casa.nome : squadre.trasferta.nome;
 
   pendingGoal = { squadra: squadra, minute: minuto, fase: fase };
-  overlayOpenedAt = Date.now();
-  overlayTitle.textContent = 'GOL ' + nome + ' — ' + formatMinute(minuto);
-
-  populatePlayerGrid(overlayGrid, rosa, function(giocatore) {
+  openPlayerPicker('GOL ' + nome + ' — ' + formatMinute(minuto), rosa, function(giocatore) {
+    if (!pendingGoal) return;
     marcatori.push(makeEvent({
       squadra: pendingGoal.squadra,
       giocatore: giocatore,
@@ -4054,13 +4142,10 @@ function openGoalOverlay(squadra) {
     actionOrder.push('goal');
     undoStack = [];
     pendingGoal = null;
-    goalOverlay.classList.remove('open');
     updateScoreboard();
     playCrowdCheer();
     saveMatch();
   }, cardDecorator(squadra));
-
-  goalOverlay.classList.add('open');
 }
 
 function closeGoalOverlay() {
@@ -4210,26 +4295,56 @@ function redoLastGoal() {
 }
 
 // ── Phase transitions ──
-function goToPhase(newPhase) {
+var PHASE_NAMES = {
+  '1T': 'Primo tempo', '2T': 'Secondo tempo',
+  '1TS': 'Primo supplementare', '2TS': 'Secondo supplementare',
+  'RIGORI': 'Rigori', 'FINITA': 'Fine partita'
+};
+
+// Entra in una fase con il timer in pausa al tempo indicato.
+function enterPhase(newPhase, elapsedMs) {
   if (timer.running) pause();
   fase = newPhase;
-  timer.elapsedMs = 0;
+  timer.elapsedMs = elapsedMs || 0;
   timer.startedAt = null;
   timer.running = false;
   timer.durataFaseMs = PHASE_DURATIONS[newPhase] || null;
-  beeped = false;
-  if (newPhase === 'RIGORI') rigori = [];
+  beeped = timer.durataFaseMs !== null && timer.elapsedMs >= timer.durataFaseMs;
+  pendingShooter = null;
   btnPlayPause.textContent = '▶ PLAY';
   btnPlayPause.classList.remove('playing');
-  // Snapshot automatica nello storico al primo ingresso in FINITA
-  if (newPhase === 'FINITA' && !storicoSavedId) {
-    var entry = buildStoricoEntryFromLive();
-    addToStorico(entry);
-    storicoSavedId = entry.id;
-  }
+  if (newPhase === 'FINITA') saveToStorico();
   updatePhaseBadges();
   updateDisplay();
   saveMatch();
+}
+
+// Snapshot nello storico all'ingresso in FINITA. Se la partita era già
+// stata salvata (si è tornati indietro e poi conclusa di nuovo) l'entry
+// esistente viene aggiornata invece di duplicarla.
+function saveToStorico() {
+  var entry = buildStoricoEntryFromLive();
+  if (storicoSavedId) {
+    var arr = loadStorico();
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i].id === storicoSavedId) {
+        entry.id = storicoSavedId;
+        entry.data = arr[i].data;
+        arr[i] = entry;
+        saveStorico(arr);
+        return;
+      }
+    }
+  }
+  addToStorico(entry);
+  storicoSavedId = entry.id;
+}
+
+// Avanza a una nuova fase ricordando quella lasciata (fase + tempo giocato)
+function goToPhase(newPhase) {
+  if (timer.running) pause();
+  phaseHistory.push({ fase: fase, elapsedMs: timer.elapsedMs });
+  enterPhase(newPhase, 0);
 }
 
 function nextPhase() {
@@ -4245,10 +4360,43 @@ function nextPhase() {
   });
 }
 
-function prevPhase() {
+// Fase a cui torna "Fase precedente". Usa la storia delle fasi; per le
+// partite salvate prima che esistesse, la ricostruisce dal punteggio.
+function previousPhaseInfo() {
+  if (phaseHistory.length) return phaseHistory[phaseHistory.length - 1];
   var idx = PHASES.indexOf(fase);
-  if (idx <= 0) return;
-  goToPhase(PHASES[idx - 1]);
+  if (idx <= 0) return null;
+  var prev = PHASES[idx - 1];
+  if (fase === 'FINITA' && rigori.length === 0) {
+    var reg = scoreOf(marcatori.filter(function(m) { return m.fase === '1T' || m.fase === '2T'; }));
+    prev = reg.casa === reg.trasferta ? '2TS' : '2T';
+  }
+  return { fase: prev, elapsedMs: PHASE_DURATIONS[prev] || 0 };
+}
+
+function prevPhase() {
+  var info = previousPhaseInfo();
+  if (!info) return;
+  var from = fase;
+  var clearsRigori = fase === 'RIGORI' && rigori.length > 0;
+  var msg = 'Tornare a: ' + PHASE_NAMES[info.fase] + ' (' + formatTime(info.elapsedMs) + ')?';
+  if (clearsRigori) msg += '\nI ' + rigori.length + ' rigori registrati verranno cancellati.';
+  if (fase === 'FINITA') msg += '\nLa partita nello storico verrà aggiornata quando finirà di nuovo.';
+  askConfirm(msg, { okLabel: 'Torna indietro', danger: clearsRigori }).then(function(ok) {
+    if (!ok || fase !== from) return;
+    if (phaseHistory.length) phaseHistory.pop();
+    if (clearsRigori) rigori = [];
+    enterPhase(info.fase, info.elapsedMs);
+  });
+}
+
+// "Nuova partita" dal menu: chiede conferma se la partita non è finita
+function confirmNewMatch() {
+  if (fase === 'FINITA') { showSetup(); return; }
+  askConfirm('Abbandonare la partita in corso?\nIl risultato non verrà salvato nello storico.',
+    { okLabel: 'Abbandona', danger: true }).then(function(ok) {
+    if (ok) showSetup();
+  });
 }
 
 // ── Settings menu ──
@@ -4268,7 +4416,7 @@ btnPlayPause.addEventListener('pointerdown', function(e) { e.preventDefault(); t
 btnNextPhase.addEventListener('pointerdown', function(e) { e.preventDefault(); nextPhase(); });
 btnSettings.addEventListener('pointerdown', function(e) { e.preventDefault(); toggleSettings(e); });
 btnPrevPhase.addEventListener('pointerdown', function(e) { e.preventDefault(); prevPhase(); closeSettings(); });
-btnNewMatch.addEventListener('pointerdown', function(e) { e.preventDefault(); closeSettings(); showSetup(); });
+btnNewMatch.addEventListener('pointerdown', function(e) { e.preventDefault(); closeSettings(); confirmNewMatch(); });
 btnGoalHome.addEventListener('pointerdown', function(e) { e.preventDefault(); openGoalOverlay('casa'); });
 btnGoalAway.addEventListener('pointerdown', function(e) { e.preventDefault(); openGoalOverlay('trasferta'); });
 btnUndo.addEventListener('pointerdown', function(e) { e.preventDefault(); undoLastGoal(); });
