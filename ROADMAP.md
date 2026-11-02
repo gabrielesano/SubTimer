@@ -44,6 +44,31 @@
   properties, toggle in setup e menu partita, preferenza in `localStorage`
   sotto `subbuteo:theme`.
 
+## Implementati (fase 3 — revisione qualità)
+
+- ~~**Fase precedente affidabile**~~: ✅ `phaseHistory` ripristina fase e
+  tempo effettivi; i rigori non si perdono tornando da FINITA; lo storico
+  viene aggiornato se la partita si conclude di nuovo.
+- ~~**Conferma "Nuova partita"**~~: ✅ dal menu ingranaggio, se la partita
+  non è conclusa.
+- ~~**Salvataggio periodico**~~: ✅ ogni 5s mentre il timer gira e su
+  `visibilitychange`/`pagehide`.
+- ~~**Rigori**~~: ✅ chiusura appena il risultato è matematico (anche a
+  metà turno); tiratore facoltativo.
+- ~~**Tap vs scroll**~~: ✅ bottoni delle schermate scorrevoli su `click`;
+  protezione dal tocco fantasma negli overlay.
+- ~~**Colori squadra**~~: ✅ contrasto col tema, colore alternativo se le
+  squadre si somigliano, swatch divisa con strisce e pantaloncini.
+- ~~**Backup**~~: ✅ export/import JSON di rose e storico.
+- ~~**Service worker**~~: ✅ pagina e JSON network-first, rose disponibili
+  offline, avviso "Nuova versione disponibile".
+- ~~**Setup**~~: ✅ ricorda squadre e durate; squadre identificate per nome.
+- ~~**Cartellini**~~: ✅ badge nella griglia giocatori, avviso secondo giallo.
+- ~~**Recupero**~~: ✅ minuti oltre la durata mostrati come `20+2'`.
+- ~~**Modifica tempo senza tastiera**~~: ✅ bottoni +/−.
+- ~~**Finestre di dialogo proprie**~~: ✅ al posto di confirm/prompt/alert.
+- ~~**Tema senza flash**~~: ✅ applicato in `<head>`, `theme-color` dinamico.
+
 ## Idee secondarie (nice to have)
 
 Miglioramenti cosmetici non indispensabili, implementabili se avanza tempo:

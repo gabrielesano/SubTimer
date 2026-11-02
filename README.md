@@ -8,8 +8,9 @@ Cronometro e tabellino per partite di Subbuteo, pensato per iPad in landscape.
 
 Una PWA single-file (HTML + CSS + JS vanilla inline) che gestisce una
 partita di Subbuteo: cronometro per tempi regolamentari e supplementari,
-punteggio, marcatori con minuto e fase, ammonizioni/espulsioni, tiri di
-rigore, riepilogo finale.
+punteggio, marcatori con minuto e fase (recupero incluso),
+ammonizioni/espulsioni, tiri di rigore con tiratore, riepilogo finale,
+storico partite e backup in JSON.
 
 Funziona offline grazie a un service worker, si installa come app sul
 tablet e genera tutti i suoni (fischio arbitro, esultanza tifosi)
@@ -29,3 +30,4 @@ Nessun framework, nessun bundler, nessuna dipendenza runtime.
 
 - [`SPEC.md`](SPEC.md) — specifica funzionale completa.
 - [`ROADMAP.md`](ROADMAP.md) — idee e miglioramenti futuri.
+- [`TESTING.md`](TESTING.md) — checklist di test manuale su iPad.

@@ -5,7 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="theme-color" content="#0d0d0d">
+<meta name="theme-color" content="#0d0d0d" id="meta-theme-color">
+<script>
+// Applica il tema salvato prima del primo paint (evita il flash del tema scuro)
+try {
+  if (localStorage.getItem('subbuteo:theme') === 'light') {
+    document.documentElement.classList.add('light-theme');
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f0f0f0');
+  }
+} catch (e) {}
+</script>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>SubbuteoBoard</title>
@@ -17,6 +26,12 @@
   --color-away: #f87171;
   --color-home-bg: #1e3a5f;
   --color-away-bg: #5f1e1e;
+  --color-home-on-bg: #60a5fa;
+  --color-away-on-bg: #f87171;
+  --kit-home: transparent;
+  --kit-away: transparent;
+  --kit-home-shorts: transparent;
+  --kit-away-shorts: transparent;
   /* Base palette */
   --bg-body: #0d0d0d;
   --bg-surface: #1a1a1a;
@@ -177,6 +192,35 @@ html, body {
   font-variant-numeric: tabular-nums;
 }
 
+.team-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  max-width: 100%;
+}
+
+.team-name-row .team-name,
+.team-name-row .summary-team-name {
+  min-width: 0;
+  text-align: center;
+}
+
+/* Divisa: maglia (tinta unita o strisce) + bordo inferiore = pantaloncini */
+.kit {
+  display: inline-block;
+  flex-shrink: 0;
+  width: clamp(16px, 2.4vh, 26px);
+  height: clamp(20px, 3vh, 32px);
+  border-radius: 4px;
+  border: 1px solid var(--border-muted);
+  border-bottom-width: clamp(6px, 0.9vh, 10px);
+}
+.kit-home { background: var(--kit-home); border-bottom-color: var(--kit-home-shorts); }
+.kit-away { background: var(--kit-away); border-bottom-color: var(--kit-away-shorts); }
+html:not([data-kit-home]) .kit-home,
+html:not([data-kit-away]) .kit-away { display: none; }
+
 .team-home .team-score { color: var(--color-home); }
 .team-away .team-score { color: var(--color-away); }
 
@@ -265,12 +309,12 @@ html, body {
 
 .btn-goal-home {
   background: var(--color-home-bg);
-  color: var(--color-home);
+  color: var(--color-home-on-bg);
 }
 
 .btn-goal-away {
   background: var(--color-away-bg);
-  color: var(--color-away);
+  color: var(--color-away-on-bg);
 }
 
 .btn-undo {
@@ -522,6 +566,12 @@ html, body {
   font-size: clamp(12px, 1.6vh, 15px);
 }
 
+.setup-hint {
+  margin-top: 1vh;
+  font-size: clamp(12px, 1.6vh, 15px);
+  color: var(--text-dim);
+}
+
 /* ── GOAL OVERLAY ── */
 .overlay {
   display: none;
@@ -683,8 +733,8 @@ html, body {
   border-color: #ef4444;
 }
 
-/* ── TABELLINO MARKERS ── */
-.scorers .card-mark {
+/* ── TABELLINO MARKERS (tabellino, riepilogo, griglia giocatori) ── */
+.card-mark {
   display: inline-block;
   width: 0.65em;
   height: 0.95em;
@@ -693,12 +743,33 @@ html, body {
   margin-right: 0.35em;
 }
 
-.scorers .card-mark.yellow {
+.card-mark.yellow {
   background: #eab308;
 }
 
-.scorers .card-mark.red {
+.card-mark.red {
   background: #ef4444;
+}
+
+/* Badge sui bottoni giocatore: cartellini già ricevuti, rigore già tirato */
+.player-badges {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.4em;
+  vertical-align: baseline;
+}
+
+.player-badges .card-mark { margin-right: 0.15em; }
+
+.player-badge-text {
+  font-size: 0.7em;
+  font-weight: 800;
+  color: var(--text-dim);
+  margin-left: 0.2em;
+}
+
+.overlay-grid button.player-expelled {
+  opacity: 0.55;
 }
 
 .scorers li.scorer-card {
@@ -798,9 +869,9 @@ html, body {
   font-weight: 800;
 }
 
-.r-kick-result.gol-home { background: var(--color-home-bg); color: var(--color-home); }
+.r-kick-result.gol-home { background: var(--color-home-bg); color: var(--color-home-on-bg); }
 .r-kick-result.err-home { background: var(--bg-element); color: var(--text-dim); }
-.r-kick-result.gol-away { background: var(--color-away-bg); color: var(--color-away); }
+.r-kick-result.gol-away { background: var(--color-away-bg); color: var(--color-away-on-bg); }
 .r-kick-result.err-away { background: var(--bg-element); color: var(--text-dim); }
 .r-kick-result.pending { background: var(--bg-surface); border: 1px dashed var(--border-light); color: transparent; }
 
@@ -836,6 +907,26 @@ html, body {
 
 .btn-rigore.gol { background: #22c55e; color: #000; }
 .btn-rigore.errore { background: #ef4444; color: #fff; }
+
+.btn-rigore-shooter {
+  padding: 1.2vh 2.5vw;
+  min-height: 48px;
+  border: 2px dashed var(--border-light);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: clamp(13px, 1.9vh, 18px);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-rigore-shooter.chosen {
+  border-style: solid;
+  border-color: #d4a017;
+  color: var(--text-primary);
+}
+
+.btn-rigore-shooter.hidden { display: none; }
 
 .btn-rigore-undo {
   padding: 1vh 2vw;
@@ -1022,7 +1113,7 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 0.3vh;
-  max-width: 420px;
+  max-width: 640px;
   margin: 0 auto;
 }
 
@@ -1044,6 +1135,13 @@ html, body {
 .summary-rigori-row .r-outcome {
   font-weight: 700;
   letter-spacing: 0.04em;
+}
+
+.summary-rigori-row .r-shooter-name {
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0;
+  margin: 0 0.5em;
 }
 
 .summary-rigori-row .r-outcome.home { text-align: right; }
@@ -1135,24 +1233,53 @@ html, body {
   gap: 1.5vw;
 }
 
-.time-edit-inputs input {
-  width: clamp(80px, 14vw, 140px);
-  padding: 2vh 1vw;
+.time-edit-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2vh;
+}
+
+.time-edit-value {
+  min-width: clamp(100px, 16vw, 160px);
+  padding: 1.5vh 1vw;
   border: 2px solid var(--border-light);
   border-radius: 12px;
   background: var(--bg-surface);
   color: var(--text-primary);
-  font-size: clamp(36px, 8vh, 72px);
+  font-size: clamp(40px, 9vh, 80px);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   text-align: center;
-  -moz-appearance: textfield;
+  line-height: 1;
 }
 
-.time-edit-inputs input::-webkit-outer-spin-button,
-.time-edit-inputs input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+.time-step-row {
+  display: flex;
+  gap: 0.8vw;
+}
+
+.time-step {
+  min-width: clamp(56px, 7vw, 84px);
+  min-height: clamp(48px, 7vh, 64px);
+  border: 2px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--bg-element);
+  color: var(--text-primary);
+  font-size: clamp(16px, 2.4vh, 22px);
+  font-weight: 800;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-step:active {
+  background: #d4a017;
+  color: #000;
+}
+
+.time-edit-hint {
+  font-size: clamp(13px, 1.8vh, 16px);
+  color: var(--text-dim);
 }
 
 .time-edit-inputs .time-edit-sep {
@@ -1364,6 +1491,121 @@ html, body {
 .btn-theme-toggle:active {
   background: var(--border-light);
 }
+
+/* ── AVVISO NUOVA VERSIONE ── */
+.update-banner {
+  display: none;
+  position: fixed;
+  top: 1.5vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 450;
+  align-items: center;
+  gap: 1.2vw;
+  padding: 1vh 1.2vw 1vh 2vw;
+  background: var(--toast-bg);
+  border: 1px solid #d4a017;
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: clamp(14px, 2vh, 18px);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.update-banner.show { display: flex; }
+
+.update-btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.8vh 1.6vw;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.update-btn.primary { background: #d4a017; border-color: #d4a017; color: #000; }
+
+/* ── MODAL (sostituisce confirm/prompt/alert nativi) ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: rgba(0,0,0,0.6);
+  align-items: center;
+  justify-content: center;
+  padding: 4vh 4vw;
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  padding: 3vh 3vw;
+  width: min(560px, 92vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5vh;
+}
+
+.modal-message {
+  font-size: clamp(16px, 2.4vh, 22px);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.35;
+  white-space: pre-line;
+}
+
+.modal-input, .modal-textarea {
+  width: 100%;
+  padding: 1.2vh 1.2vw;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--bg-inset);
+  color: var(--text-primary);
+  font-size: clamp(15px, 2.2vh, 20px);
+  font-family: inherit;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.modal-textarea {
+  height: 40vh;
+  resize: none;
+  font-size: clamp(13px, 1.8vh, 16px);
+}
+
+.modal-input.hidden, .modal-textarea.hidden { display: none; }
+
+.modal-actions {
+  display: flex;
+  gap: 1.5vw;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.modal-btn {
+  padding: 1.6vh 3.5vw;
+  min-height: 52px;
+  border: 2px solid var(--border-light);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: clamp(15px, 2.2vh, 20px);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.modal-btn.primary { background: #22c55e; border-color: #22c55e; color: #000; }
+.modal-btn.danger { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+.modal-btn:active { filter: brightness(0.85); }
 </style>
 </head>
 <body>
@@ -1426,6 +1668,17 @@ html, body {
     </div>
   </div>
 
+  <!-- Backup -->
+  <div class="setup-section">
+    <h2>Backup dati</h2>
+    <div class="import-row">
+      <button class="btn-setup" id="btn-backup-export">Esporta backup</button>
+      <button class="btn-setup" id="btn-backup-import">Importa backup</button>
+      <input type="file" id="backup-file" accept=".json,application/json" hidden>
+    </div>
+    <div class="setup-hint">Salva rose e storico partite in un file JSON. L'import unisce i dati a quelli già presenti.</div>
+  </div>
+
   <button class="btn-start" id="btn-start">INIZIA PARTITA</button>
   <button class="btn-setup" id="btn-storico-setup">Storico partite</button>
   <button class="btn-theme-toggle" id="btn-theme-setup">Tema: scuro</button>
@@ -1474,7 +1727,7 @@ html, body {
 
     <!-- Home team -->
     <div class="team team-home">
-      <div id="name-home" class="team-name">Italia</div>
+      <div class="team-name-row"><span class="kit kit-home"></span><div id="name-home" class="team-name">Italia</div></div>
       <div id="score-home" class="team-score">0</div>
       <ul id="scorers-home" class="scorers"></ul>
     </div>
@@ -1487,7 +1740,7 @@ html, body {
 
     <!-- Away team -->
     <div class="team team-away">
-      <div id="name-away" class="team-name">Unione Sovietica</div>
+      <div class="team-name-row"><div id="name-away" class="team-name">Unione Sovietica</div><span class="kit kit-away"></span></div>
       <div id="score-away" class="team-score">0</div>
       <ul id="scorers-away" class="scorers"></ul>
     </div>
@@ -1509,6 +1762,7 @@ html, body {
       </div>
     </div>
     <div id="r-sequence" class="rigori-sequence"></div>
+    <button id="r-shooter" class="btn-rigore-shooter">Tiratore: scegli (facoltativo)</button>
     <div class="rigori-buttons">
       <button id="r-gol" class="btn-rigore gol">GOL</button>
       <div id="r-turn-label" class="r-label"></div>
@@ -1523,12 +1777,12 @@ html, body {
     <div class="summary-title">FINE PARTITA</div>
     <div class="summary-score">
       <div class="summary-team summary-team-home">
-        <div class="summary-team-name" id="summary-name-home"></div>
+        <div class="team-name-row"><span class="kit kit-home"></span><div class="summary-team-name" id="summary-name-home"></div></div>
         <div class="summary-team-score" id="summary-score-home">0</div>
       </div>
       <div class="summary-vs">—</div>
       <div class="summary-team summary-team-away">
-        <div class="summary-team-name" id="summary-name-away"></div>
+        <div class="team-name-row"><div class="summary-team-name" id="summary-name-away"></div><span class="kit kit-away"></span></div>
         <div class="summary-team-score" id="summary-score-away">0</div>
       </div>
     </div>
@@ -1563,10 +1817,31 @@ html, body {
 <div id="time-edit-overlay" class="time-edit-overlay">
   <div class="overlay-title">MODIFICA TEMPO</div>
   <div class="time-edit-inputs">
-    <input type="number" id="time-edit-min" min="0" max="99" placeholder="MM">
+    <div class="time-edit-field">
+      <div class="time-step-row">
+        <button type="button" class="time-step" data-step="300">+5</button>
+        <button type="button" class="time-step" data-step="60">+1</button>
+      </div>
+      <div id="time-edit-min" class="time-edit-value">00</div>
+      <div class="time-step-row">
+        <button type="button" class="time-step" data-step="-300">−5</button>
+        <button type="button" class="time-step" data-step="-60">−1</button>
+      </div>
+    </div>
     <span class="time-edit-sep">:</span>
-    <input type="number" id="time-edit-sec" min="0" max="59" placeholder="SS">
+    <div class="time-edit-field">
+      <div class="time-step-row">
+        <button type="button" class="time-step" data-step="10">+10</button>
+        <button type="button" class="time-step" data-step="1">+1</button>
+      </div>
+      <div id="time-edit-sec" class="time-edit-value">00</div>
+      <div class="time-step-row">
+        <button type="button" class="time-step" data-step="-10">−10</button>
+        <button type="button" class="time-step" data-step="-1">−1</button>
+      </div>
+    </div>
   </div>
+  <div class="time-edit-hint">Minuti a sinistra, secondi a destra</div>
   <div class="time-edit-actions">
     <button class="btn-time-confirm" id="btn-time-confirm">Conferma</button>
     <button class="btn-time-cancel" id="btn-time-cancel">Annulla</button>
@@ -1575,6 +1850,23 @@ html, body {
 
 <!-- ══ TOAST ══ -->
 <div id="toast" class="toast"></div>
+
+<!-- ══ AVVISO NUOVA VERSIONE ══ -->
+<div id="update-banner" class="update-banner" role="status">
+  <span>Nuova versione disponibile</span>
+  <button type="button" id="btn-update-reload" class="update-btn primary">Aggiorna</button>
+  <button type="button" id="btn-update-dismiss" class="update-btn" aria-label="Chiudi avviso">✕</button>
+</div>
+
+<!-- ══ MODAL (conferme, input testo, avvisi) ══ -->
+<div id="modal" class="modal-overlay">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <div id="modal-message" class="modal-message"></div>
+    <input id="modal-input" class="modal-input hidden" type="text" autocomplete="off">
+    <textarea id="modal-textarea" class="modal-textarea hidden" readonly></textarea>
+    <div id="modal-actions" class="modal-actions"></div>
+  </div>
+</div>
 
 <!-- ══ CARD OVERLAY ══ -->
 <div id="card-overlay" class="overlay">
@@ -1595,6 +1887,194 @@ html, body {
 
 <script>
 // ═══════════════════════════════════════════
+// MODAL (sostituisce confirm / prompt / alert nativi)
+// ═══════════════════════════════════════════
+// Un tap che apre un overlay (pointerdown) può generare subito dopo un
+// "click" sul nuovo contenuto sotto il dito (tocco fantasma, soprattutto
+// su iOS). Per questo i click arrivati entro GHOST_GUARD_MS dall'apertura
+// di un overlay vengono ignorati.
+var GHOST_GUARD_MS = 350;
+
+var modalEl = document.getElementById('modal');
+var modalMessage = document.getElementById('modal-message');
+var modalInput = document.getElementById('modal-input');
+var modalTextarea = document.getElementById('modal-textarea');
+var modalActions = document.getElementById('modal-actions');
+var modalResolve = null;
+var modalCancelValue = null;
+var modalDefaultBtn = null;
+var modalOpenedAt = 0;
+
+// opts: { message, input: { value, placeholder } | null, text: string | null,
+//         buttons: [{ label, value (o funzione), kind: 'primary'|'danger'|'' , isDefault }],
+//         cancelValue }
+// Ritorna una Promise risolta con il value del bottone premuto.
+function openModal(opts) {
+  if (modalResolve) closeModal(modalCancelValue);
+  return new Promise(function(resolve) {
+    modalResolve = resolve;
+    modalCancelValue = opts.cancelValue;
+    modalMessage.textContent = opts.message || '';
+
+    modalInput.classList.toggle('hidden', !opts.input);
+    if (opts.input) {
+      modalInput.value = opts.input.value || '';
+      modalInput.placeholder = opts.input.placeholder || '';
+    }
+    modalTextarea.classList.toggle('hidden', opts.text == null);
+    modalTextarea.value = opts.text != null ? opts.text : '';
+
+    modalActions.innerHTML = '';
+    modalDefaultBtn = null;
+    opts.buttons.forEach(function(b) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'modal-btn' + (b.kind ? ' ' + b.kind : '');
+      btn.textContent = b.label;
+      var pick = function() {
+        closeModal(typeof b.value === 'function' ? b.value() : b.value);
+      };
+      btn.addEventListener('click', function() {
+        if (Date.now() - modalOpenedAt < GHOST_GUARD_MS) return;
+        pick();
+      });
+      if (b.isDefault) modalDefaultBtn = pick;
+      modalActions.appendChild(btn);
+    });
+
+    modalOpenedAt = Date.now();
+    modalEl.classList.add('open');
+    if (opts.input) {
+      modalInput.focus();
+      modalInput.select();
+    } else if (opts.text != null) {
+      modalTextarea.focus();
+      modalTextarea.select();
+    }
+  });
+}
+
+function closeModal(value) {
+  modalEl.classList.remove('open');
+  var r = modalResolve;
+  modalResolve = null;
+  modalDefaultBtn = null;
+  if (r) r(value);
+}
+
+function isModalOpen() { return modalEl.classList.contains('open'); }
+
+document.addEventListener('keydown', function(e) {
+  if (!isModalOpen()) return;
+  if (e.key === 'Escape') { e.preventDefault(); closeModal(modalCancelValue); }
+  else if (e.key === 'Enter' && modalDefaultBtn && e.target !== modalTextarea) {
+    e.preventDefault();
+    modalDefaultBtn();
+  }
+});
+
+// Conferma sì/no. opts: { okLabel, cancelLabel, danger }
+function askConfirm(message, opts) {
+  opts = opts || {};
+  return openModal({
+    message: message,
+    buttons: [
+      { label: opts.cancelLabel || 'Annulla', value: false },
+      { label: opts.okLabel || 'Conferma', value: true, kind: opts.danger ? 'danger' : 'primary', isDefault: true }
+    ],
+    cancelValue: false
+  });
+}
+
+// Input di testo: risolve con la stringa inserita o null se annullato.
+function askText(message, defaultValue, okLabel) {
+  return openModal({
+    message: message,
+    input: { value: defaultValue || '' },
+    buttons: [
+      { label: 'Annulla', value: null },
+      { label: okLabel || 'OK', value: function() { return modalInput.value; }, kind: 'primary', isDefault: true }
+    ],
+    cancelValue: null
+  });
+}
+
+function showAlert(message) {
+  return openModal({
+    message: message,
+    buttons: [{ label: 'OK', value: true, kind: 'primary', isDefault: true }],
+    cancelValue: true
+  });
+}
+
+// Mostra un testo lungo selezionabile (fallback quando share/clipboard mancano).
+function showCopyText(message, text) {
+  return openModal({
+    message: message,
+    text: text,
+    buttons: [{ label: 'Chiudi', value: true, kind: 'primary', isDefault: true }],
+    cancelValue: true
+  });
+}
+
+// ═══════════════════════════════════════════
+// HELPER CONDIVISI (punteggi, eventi, nomi)
+// ═══════════════════════════════════════════
+function scoreOf(marc) {
+  var c = 0, t = 0;
+  for (var i = 0; i < marc.length; i++) {
+    if (marc[i].squadra === 'casa') c++; else t++;
+  }
+  return { casa: c, trasferta: t };
+}
+
+function rigoriScoreOf(arr) {
+  var c = 0, t = 0;
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i].esito === 'gol') {
+      if (arr[i].squadra === 'casa') c++; else t++;
+    }
+  }
+  return { casa: c, trasferta: t };
+}
+
+// Formatta il minuto di un evento.
+// Durante il recupero: "20+2'" (minutoGioco = durata della fase, recupero = minuti oltre).
+function formatMinute(ev) {
+  return ev.minutoGioco + (ev.recupero ? '+' + ev.recupero : '') + "'";
+}
+
+// Unisce gol e cartellini di una partita (live o storico), opzionalmente
+// filtrati per fase, ordinati per fase e poi per minuto.
+// Ritorna [{ kind: 'goal'|'giallo'|'rosso', data }].
+function collectEvents(match, phaseKey) {
+  var events = [];
+  var marc = match.marcatori || [];
+  var cart = match.cartellini || [];
+  for (var i = 0; i < marc.length; i++) {
+    if (!phaseKey || marc[i].fase === phaseKey) events.push({ kind: 'goal', data: marc[i] });
+  }
+  for (var j = 0; j < cart.length; j++) {
+    if (!phaseKey || cart[j].fase === phaseKey) events.push({ kind: cart[j].tipo, data: cart[j] });
+  }
+  events.sort(function(a, b) {
+    var pa = PHASES.indexOf(a.data.fase);
+    var pb = PHASES.indexOf(b.data.fase);
+    if (pa !== pb) return pa - pb;
+    if (a.data.minutoGioco !== b.data.minutoGioco) return a.data.minutoGioco - b.data.minutoGioco;
+    return (a.data.recupero || 0) - (b.data.recupero || 0);
+  });
+  return events;
+}
+
+// Nome giocatore per la visualizzazione. numPrefix: '' oppure '#'.
+function playerLabel(giocatore, fallback, numPrefix) {
+  var pg = parsePlayer(giocatore || '');
+  if (pg.numero) return (numPrefix || '') + pg.numero + ' ' + pg.nome;
+  return pg.nome || fallback;
+}
+
+// ═══════════════════════════════════════════
 // ROSTER STORAGE (localStorage)
 // ═══════════════════════════════════════════
 var ROSTERS_KEY = 'subbuteo:rosters';
@@ -1608,10 +2088,47 @@ function loadRosters() {
 }
 
 function saveRosters(list) {
-  localStorage.setItem(ROSTERS_KEY, JSON.stringify({ squadre: list }));
+  try {
+    localStorage.setItem(ROSTERS_KEY, JSON.stringify({ squadre: list }));
+  } catch (e) {
+    showToast('Impossibile salvare le rose (spazio esaurito?)');
+  }
 }
 
 var rosters = loadRosters();
+
+// Le squadre sono identificate dal nome (unico): i <select> usano il nome
+// come value, così eliminare una squadra non sposta la selezione su un'altra.
+function findRosterIdx(nome) {
+  if (!nome) return -1;
+  for (var i = 0; i < rosters.length; i++) {
+    if (rosters[i].nome === nome) return i;
+  }
+  return -1;
+}
+
+function isHex(c) {
+  return typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c);
+}
+
+// Normalizza uno schema colori letto da file esterno; null se non valido.
+function validSchema(s) {
+  if (!s || typeof s.id !== 'string' || !Array.isArray(s.colori)) return null;
+  var colori = s.colori.filter(isHex);
+  if (colori.length === 0) return null;
+  var patterns = ['tinta-unita', 'strisce-verticali', 'strisce-orizzontali'];
+  return {
+    id: s.id,
+    pattern: patterns.indexOf(s.pattern) !== -1 ? s.pattern : 'tinta-unita',
+    colori: colori,
+    pantaloncini: isHex(s.pantaloncini) ? s.pantaloncini : null
+  };
+}
+
+function cleanRosa(arr) {
+  return arr.filter(function(s) { return typeof s === 'string' && s.trim(); })
+            .map(function(s) { return s.trim(); });
+}
 
 // ── Color helpers ──
 function darkenHex(hex, amount) {
@@ -1625,22 +2142,119 @@ function darkenHex(hex, amount) {
   return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
+function hexToRgb(hex) {
+  return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+}
+
+function rgbToHex(rgb) {
+  return '#' + ((1 << 24) + (rgb[0] << 16) + (rgb[1] << 8) + rgb[2]).toString(16).slice(1);
+}
+
+function mixHex(a, b, t) {
+  var ra = hexToRgb(a), rb = hexToRgb(b);
+  return rgbToHex([0, 1, 2].map(function(i) { return Math.round(ra[i] + (rb[i] - ra[i]) * t); }));
+}
+
+// Luminanza relativa WCAG
+function relLum(hex) {
+  var c = hexToRgb(hex).map(function(v) {
+    v /= 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+
+function contrastRatio(a, b) {
+  var la = relLum(a), lb = relLum(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+// Distanza percettiva approssimata ("redmean"), 0..~765
+function colorDistance(a, b) {
+  var ra = hexToRgb(a), rb = hexToRgb(b);
+  var rmean = (ra[0] + rb[0]) / 2;
+  var dr = ra[0] - rb[0], dg = ra[1] - rb[1], db = ra[2] - rb[2];
+  return Math.sqrt((2 + rmean / 256) * dr * dr + 4 * dg * dg + (2 + (255 - rmean) / 256) * db * db);
+}
+
+// Schiarisce (su sfondo scuro) o scurisce (su sfondo chiaro) un colore
+// finché non raggiunge il contrasto minimo con lo sfondo.
+function ensureContrast(hex, bg, minRatio) {
+  var target = relLum(bg) < 0.5 ? '#ffffff' : '#000000';
+  var c = hex;
+  for (var i = 1; i <= 20 && contrastRatio(c, bg) < minRatio; i++) {
+    c = mixHex(hex, target, i / 20);
+  }
+  return c;
+}
+
+var DEFAULT_HOME_COLOR = '#60a5fa';
+var DEFAULT_AWAY_COLORS = ['#f87171', '#facc15', '#a3e635', '#c084fc'];
+var MIN_TEAM_DISTANCE = 120;
+
+function themeBg() {
+  return document.documentElement.classList.contains('light-theme') ? '#f0f0f0' : '#0d0d0d';
+}
+
+// Sfondo della divisa: tinta unita o strisce verticali/orizzontali
+function kitBackground(schema) {
+  var cols = schema.colori;
+  if (cols.length < 2 || schema.pattern === 'tinta-unita') return cols[0];
+  var deg = schema.pattern === 'strisce-orizzontali' ? '180deg' : '90deg';
+  var stops = [];
+  var w = 4;
+  for (var i = 0; i < cols.length; i++) {
+    stops.push(cols[i] + ' ' + (i * w) + 'px ' + ((i + 1) * w) + 'px');
+  }
+  return 'repeating-linear-gradient(' + deg + ', ' + stops.join(', ') + ')';
+}
+
+// Schemi della partita mostrata, per riapplicare i colori al cambio tema
+var currentHomeSchema = null;
+var currentAwaySchema = null;
+
+// Calcola i colori di casa e trasferta garantendo contrasto con lo sfondo
+// del tema e una distanza minima tra le due squadre: se la trasferta ha lo
+// stesso colore della casa usa un colore alternativo (secondo colore,
+// pantaloncini o un default).
+function computeTeamColors(homeSchema, awaySchema, bg) {
+  var homeBase = (homeSchema && homeSchema.colori && homeSchema.colori[0]) || DEFAULT_HOME_COLOR;
+  var home = ensureContrast(homeBase, bg, 3);
+
+  var candidates = [];
+  if (awaySchema && awaySchema.colori) candidates = candidates.concat(awaySchema.colori);
+  if (awaySchema && awaySchema.pantaloncini) candidates.push(awaySchema.pantaloncini);
+  candidates = candidates.concat(DEFAULT_AWAY_COLORS);
+  var away = null;
+  for (var i = 0; i < candidates.length; i++) {
+    if (!isHex(candidates[i])) continue;
+    var c = ensureContrast(candidates[i], bg, 3);
+    if (colorDistance(c, home) >= MIN_TEAM_DISTANCE) { away = c; break; }
+  }
+  if (!away) away = ensureContrast(DEFAULT_AWAY_COLORS[0], bg, 3);
+  return { home: home, away: away };
+}
+
 function applyTeamColors(homeSchema, awaySchema) {
-  var root = document.documentElement.style;
-  if (homeSchema && homeSchema.colori && homeSchema.colori.length > 0) {
-    root.setProperty('--color-home', homeSchema.colori[0]);
-    root.setProperty('--color-home-bg', darkenHex(homeSchema.colori[0], 0.55));
-  } else {
-    root.setProperty('--color-home', '#60a5fa');
-    root.setProperty('--color-home-bg', '#1e3a5f');
-  }
-  if (awaySchema && awaySchema.colori && awaySchema.colori.length > 0) {
-    root.setProperty('--color-away', awaySchema.colori[0]);
-    root.setProperty('--color-away-bg', darkenHex(awaySchema.colori[0], 0.55));
-  } else {
-    root.setProperty('--color-away', '#f87171');
-    root.setProperty('--color-away-bg', '#5f1e1e');
-  }
+  currentHomeSchema = homeSchema || null;
+  currentAwaySchema = awaySchema || null;
+  var html = document.documentElement;
+  var root = html.style;
+  var cols = computeTeamColors(currentHomeSchema, currentAwaySchema, themeBg());
+  [['home', cols.home, currentHomeSchema], ['away', cols.away, currentAwaySchema]].forEach(function(t) {
+    var side = t[0], color = t[1], schema = t[2];
+    var bg = darkenHex(color, 0.6);
+    root.setProperty('--color-' + side, color);
+    root.setProperty('--color-' + side + '-bg', bg);
+    root.setProperty('--color-' + side + '-on-bg', ensureContrast(color, bg, 3.5));
+    if (schema && schema.colori && schema.colori.length) {
+      root.setProperty('--kit-' + side, kitBackground(schema));
+      root.setProperty('--kit-' + side + '-shorts', schema.pantaloncini || schema.colori[0]);
+      html.setAttribute('data-kit-' + side, '1');
+    } else {
+      html.removeAttribute('data-kit-' + side);
+    }
+  });
 }
 
 function schemaLabel(schema) {
@@ -1712,22 +2326,54 @@ var btnSyncServer = document.getElementById('btn-sync-server');
 var syncStatus = document.getElementById('sync-status');
 var btnStart = document.getElementById('btn-start');
 
+// ── Preferenze setup (ultime squadre e durate usate) ──
+var SETUP_KEY = 'subbuteo:setup';
+
+function loadSetupPrefs() {
+  try {
+    var p = JSON.parse(localStorage.getItem(SETUP_KEY));
+    if (p && typeof p === 'object') return p;
+  } catch (e) {}
+  return {};
+}
+
+function saveSetupPrefs(p) {
+  try { localStorage.setItem(SETUP_KEY, JSON.stringify(p)); } catch (e) {}
+}
+
+var setupPrefs = loadSetupPrefs();
+if (setupPrefs.durRegular) durRegular.value = setupPrefs.durRegular;
+if (setupPrefs.durExtra) durExtra.value = setupPrefs.durExtra;
+
+function clampInt(v, min, max, def) {
+  var n = parseInt(v, 10);
+  if (isNaN(n)) return def;
+  return Math.min(max, Math.max(min, n));
+}
+
+// Nel setup i bottoni reagiscono al tap completo ("click") e non al
+// pointerdown: la schermata scorre, e uno swipe che parte su un bottone
+// non deve attivarlo.
+function onTap(el, fn) {
+  el.addEventListener('click', function(e) { e.preventDefault(); fn(e); });
+}
+
 function refreshSetup() {
   // Group rosters by schema id
   var groups = {};
   var ungrouped = [];
-  rosters.forEach(function(t, i) {
+  rosters.forEach(function(t) {
     if (t.schema && t.schema.id) {
       var gid = t.schema.id;
       if (!groups[gid]) groups[gid] = { schema: t.schema, items: [] };
-      groups[gid].items.push({ idx: i, nome: t.nome });
+      groups[gid].items.push(t.nome);
     } else {
-      ungrouped.push({ idx: i, nome: t.nome });
+      ungrouped.push(t.nome);
     }
   });
 
   [selHome, selAway].forEach(function(sel) {
-    var val = sel.value;
+    var val = sel.value || (sel === selHome ? setupPrefs.casa : setupPrefs.trasferta);
     sel.innerHTML = '';
     var groupIds = Object.keys(groups);
     for (var g = 0; g < groupIds.length; g++) {
@@ -1736,44 +2382,47 @@ function refreshSetup() {
       optgroup.label = schemaLabel(grp.schema);
       for (var j = 0; j < grp.items.length; j++) {
         var opt = document.createElement('option');
-        opt.value = grp.items[j].idx;
-        opt.textContent = grp.items[j].nome;
+        opt.value = grp.items[j];
+        opt.textContent = grp.items[j];
         optgroup.appendChild(opt);
       }
       sel.appendChild(optgroup);
     }
     for (var u = 0; u < ungrouped.length; u++) {
       var opt2 = document.createElement('option');
-      opt2.value = ungrouped[u].idx;
-      opt2.textContent = ungrouped[u].nome;
+      opt2.value = ungrouped[u];
+      opt2.textContent = ungrouped[u];
       sel.appendChild(opt2);
     }
-    if (val) sel.value = val;
+    if (findRosterIdx(val) >= 0) sel.value = val;
   });
-  // default: away = second team if available
+  // default: trasferta = prima squadra diversa dalla casa
   if (rosters.length >= 2 && selHome.value === selAway.value) {
-    selAway.value = '1';
+    for (var o = 0; o < selAway.options.length; o++) {
+      if (selAway.options[o].value !== selHome.value) {
+        selAway.value = selAway.options[o].value;
+        break;
+      }
+    }
   }
 
   // populate roster manager list
-  var prevIdx = rosterSel.value;
+  var prevName = rosterSel.value;
   rosterSel.innerHTML = '';
-  rosters.forEach(function(t, i) {
+  rosters.forEach(function(t) {
     var opt = document.createElement('option');
-    opt.value = i;
+    opt.value = t.nome;
     opt.textContent = t.nome;
     rosterSel.appendChild(opt);
   });
-  if (prevIdx !== '' && prevIdx < rosters.length) {
-    rosterSel.value = prevIdx;
-  }
+  if (findRosterIdx(prevName) >= 0) rosterSel.value = prevName;
   loadRosterEditor();
   if (typeof updateStoricoSetupButton === 'function') updateStoricoSetupButton();
 }
 
 function loadRosterEditor() {
-  var idx = parseInt(rosterSel.value);
-  if (isNaN(idx) || !rosters[idx]) {
+  var idx = findRosterIdx(rosterSel.value);
+  if (idx < 0) {
     rosterEdit.value = '';
     return;
   }
@@ -1782,63 +2431,184 @@ function loadRosterEditor() {
 
 rosterSel.addEventListener('change', loadRosterEditor);
 
-btnSaveRoster.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  var idx = parseInt(rosterSel.value);
-  if (isNaN(idx) || !rosters[idx]) return;
-  rosters[idx].rosa = rosterEdit.value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+onTap(btnSaveRoster, function() {
+  var idx = findRosterIdx(rosterSel.value);
+  if (idx < 0) return;
+  rosters[idx].rosa = cleanRosa(rosterEdit.value.split('\n'));
   saveRosters(rosters);
   refreshSetup();
+  showToast('Rosa salvata');
 });
 
-btnNewTeam.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  var nome = prompt('Nome della squadra:');
-  if (!nome || !nome.trim()) return;
-  rosters.push({ nome: nome.trim(), rosa: [] });
-  saveRosters(rosters);
-  refreshSetup();
-  rosterSel.value = rosters.length - 1;
-  loadRosterEditor();
+onTap(btnNewTeam, function() {
+  askText('Nome della squadra:', '', 'Crea').then(function(nome) {
+    if (!nome || !nome.trim()) return;
+    nome = nome.trim();
+    if (findRosterIdx(nome) >= 0) {
+      showAlert('Esiste già una squadra chiamata "' + nome + '".');
+      return;
+    }
+    rosters.push({ nome: nome, rosa: [] });
+    saveRosters(rosters);
+    refreshSetup();
+    rosterSel.value = nome;
+    loadRosterEditor();
+  });
 });
 
-btnDelTeam.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  var idx = parseInt(rosterSel.value);
-  if (isNaN(idx) || !rosters[idx]) return;
-  if (!confirm('Eliminare "' + rosters[idx].nome + '"?')) return;
-  rosters.splice(idx, 1);
-  saveRosters(rosters);
-  refreshSetup();
+onTap(btnDelTeam, function() {
+  var nome = rosterSel.value;
+  if (findRosterIdx(nome) < 0) return;
+  askConfirm('Eliminare "' + nome + '"?', { okLabel: 'Elimina', danger: true }).then(function(ok) {
+    var idx = findRosterIdx(nome);
+    if (!ok || idx < 0) return;
+    rosters.splice(idx, 1);
+    saveRosters(rosters);
+    refreshSetup();
+  });
 });
 
-btnImport.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
+onTap(btnImport, function() {
   var file = importJson.files[0];
   if (!file) return;
   var reader = new FileReader();
   reader.onload = function() {
     try {
       var data = JSON.parse(reader.result);
-      if (data.nome && Array.isArray(data.rosa)) {
-        // check if team already exists
-        var existing = rosters.findIndex(function(t){return t.nome === data.nome;});
+      if (typeof data.nome === 'string' && data.nome.trim() && Array.isArray(data.rosa)) {
+        var nome = data.nome.trim();
+        var rosa = cleanRosa(data.rosa);
+        var schema = validSchema(data.schema);
+        var existing = findRosterIdx(nome);
         if (existing >= 0) {
-          rosters[existing].rosa = data.rosa;
+          rosters[existing].rosa = rosa;
+          if (schema) rosters[existing].schema = schema;
         } else {
-          rosters.push({ nome: data.nome, rosa: data.rosa });
+          rosters.push({ nome: nome, rosa: rosa, schema: schema });
         }
         saveRosters(rosters);
         refreshSetup();
         importJson.value = '';
+        showToast('Rosa "' + nome + '" importata');
+      } else {
+        showAlert('Il file deve contenere { "nome": ..., "rosa": [...] }');
       }
-    } catch (err) { alert('File JSON non valido'); }
+    } catch (err) { showAlert('File JSON non valido'); }
   };
   reader.readAsText(file);
 });
 
-btnSyncServer.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
+// ── Backup completo (rose + storico) ──
+var btnBackupExport = document.getElementById('btn-backup-export');
+var btnBackupImport = document.getElementById('btn-backup-import');
+var backupFile = document.getElementById('backup-file');
+
+function backupFileName() {
+  var d = new Date();
+  var pad = function(n) { return n < 10 ? '0' + n : String(n); };
+  return 'subbuteoboard-backup-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.json';
+}
+
+function downloadText(text, fname) {
+  var blob = new Blob([text], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+  showToast('Backup scaricato');
+}
+
+function exportBackup() {
+  var json = JSON.stringify({
+    app: 'SubbuteoBoard',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    rosters: rosters,
+    storico: loadStorico()
+  }, null, 2);
+  var fname = backupFileName();
+  var file = null;
+  try { file = new File([json], fname, { type: 'application/json' }); } catch (e) {}
+  // Su iPad il foglio di condivisione permette di salvare su File/iCloud
+  if (file && navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file], title: 'Backup SubbuteoBoard' }).catch(function(err) {
+      if (!err || err.name !== 'AbortError') downloadText(json, fname);
+    });
+    return;
+  }
+  downloadText(json, fname);
+}
+
+// Unisce un backup ai dati locali: le rose con lo stesso nome vengono
+// sostituite, le partite dello storico aggiunte se il loro id manca.
+function mergeBackup(data) {
+  var res = { teamsAdded: 0, teamsUpdated: 0, matchesAdded: 0 };
+  (data.rosters || []).forEach(function(t) {
+    if (!t || typeof t.nome !== 'string' || !t.nome.trim() || !Array.isArray(t.rosa)) return;
+    var nome = t.nome.trim();
+    var clean = { nome: nome, rosa: cleanRosa(t.rosa), schema: validSchema(t.schema) };
+    var i = findRosterIdx(nome);
+    if (i >= 0) {
+      if (!clean.schema) clean.schema = rosters[i].schema || null;
+      rosters[i] = clean;
+      res.teamsUpdated++;
+    } else {
+      rosters.push(clean);
+      res.teamsAdded++;
+    }
+  });
+  saveRosters(rosters);
+
+  var st = loadStorico();
+  var ids = {};
+  st.forEach(function(e) { ids[e.id] = true; });
+  (data.storico || []).forEach(function(e) {
+    if (!e || !e.id || ids[e.id] || !e.squadre || !e.squadre.casa || !e.squadre.trasferta ||
+        !Array.isArray(e.marcatori)) return;
+    st.push(e);
+    ids[e.id] = true;
+    res.matchesAdded++;
+  });
+  st.sort(function(a, b) { return (b.data || 0) - (a.data || 0); });
+  saveStorico(st);
+  refreshSetup();
+  return res;
+}
+
+onTap(btnBackupExport, exportBackup);
+onTap(btnBackupImport, function() { backupFile.click(); });
+
+backupFile.addEventListener('change', function() {
+  var file = backupFile.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function() {
+    backupFile.value = '';
+    var data;
+    try { data = JSON.parse(reader.result); } catch (e) { data = null; }
+    if (!data || data.app !== 'SubbuteoBoard' ||
+        (!Array.isArray(data.rosters) && !Array.isArray(data.storico))) {
+      showAlert('Il file non è un backup di SubbuteoBoard.');
+      return;
+    }
+    var nTeams = (data.rosters || []).length;
+    var nMatches = (data.storico || []).length;
+    askConfirm('Importare il backup?\n' + nTeams + ' squadre (quelle con lo stesso nome verranno sostituite) e ' +
+      nMatches + ' partite (quelle già presenti vengono saltate).', { okLabel: 'Importa' }).then(function(ok) {
+      if (!ok) return;
+      var r = mergeBackup(data);
+      showAlert('Backup importato.\nSquadre: ' + r.teamsAdded + ' nuove, ' + r.teamsUpdated +
+        ' aggiornate.\nPartite: ' + r.matchesAdded + ' aggiunte.');
+    });
+  };
+  reader.readAsText(file);
+});
+
+onTap(btnSyncServer, function() {
   syncStatus.textContent = 'Sincronizzazione...';
   syncRostersFromServer(function(added) {
     if (added < 0) {
@@ -1856,6 +2626,7 @@ btnSyncServer.addEventListener('pointerdown', function(e) {
 function showSetup() {
   if (timer.running) pause();
   stopTick();
+  matchActive = false;
   clearMatch();
   storicoSavedId = null;
   screenSetup.classList.add('active');
@@ -1866,6 +2637,7 @@ function showSetup() {
 }
 
 function showMatch() {
+  matchActive = true;
   screenSetup.classList.remove('active');
   screenMatch.classList.add('active');
   var ss = document.getElementById('screen-storico');
@@ -1875,16 +2647,15 @@ function showMatch() {
 // ═══════════════════════════════════════════
 // START MATCH
 // ═══════════════════════════════════════════
-btnStart.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  var homeIdx = parseInt(selHome.value);
-  var awayIdx = parseInt(selAway.value);
-  if (isNaN(homeIdx) || isNaN(awayIdx) || !rosters[homeIdx] || !rosters[awayIdx]) {
-    alert('Seleziona entrambe le squadre.');
+onTap(btnStart, function() {
+  var homeIdx = findRosterIdx(selHome.value);
+  var awayIdx = findRosterIdx(selAway.value);
+  if (homeIdx < 0 || awayIdx < 0) {
+    showAlert('Seleziona entrambe le squadre.');
     return;
   }
   if (homeIdx === awayIdx) {
-    alert('Seleziona due squadre diverse.');
+    showAlert('Seleziona due squadre diverse.');
     return;
   }
 
@@ -1899,9 +2670,13 @@ btnStart.addEventListener('pointerdown', function(e) {
   // Apply team colors from schema
   applyTeamColors(squadre.casa.schema, squadre.trasferta.schema);
 
-  // Read durations
-  var regMin = parseInt(durRegular.value) || 20;
-  var extMin = parseInt(durExtra.value) || 5;
+  // Read durations (e ricorda le scelte per la prossima partita)
+  var regMin = clampInt(durRegular.value, 1, 60, 20);
+  var extMin = clampInt(durExtra.value, 1, 30, 5);
+  durRegular.value = regMin;
+  durExtra.value = extMin;
+  setupPrefs = { casa: squadre.casa.nome, trasferta: squadre.trasferta.nome, durRegular: regMin, durExtra: extMin };
+  saveSetupPrefs(setupPrefs);
   PHASE_DURATIONS['1T'] = regMin * 60 * 1000;
   PHASE_DURATIONS['2T'] = regMin * 60 * 1000;
   PHASE_DURATIONS['1TS'] = extMin * 60 * 1000;
@@ -1919,6 +2694,8 @@ btnStart.addEventListener('pointerdown', function(e) {
   actionOrder = [];
   rigori = [];
   undoStack = [];
+  phaseHistory = [];
+  pendingShooter = null;
   storicoSavedId = null;
 
   // Update UI
@@ -1968,8 +2745,15 @@ var undoStack = []; // redo stack: [{ type: 'goal'|'card', event: {...} }]
 
 var MATCH_KEY = 'subbuteo:matchState';
 var storicoSavedId = null; // id dell'entry storico se la partita corrente è già stata salvata
+// Fasi lasciate andando avanti, per tornare indietro alla fase giusta e col
+// tempo che aveva: [{ fase, elapsedMs }]
+var phaseHistory = [];
+var matchActive = false;   // true tra "Inizia partita" (o ripristino) e il ritorno al setup
+var lastSaveAt = 0;
+var AUTOSAVE_MS = 5000;    // salvataggio periodico mentre il timer gira
 
 function saveMatch() {
+  lastSaveAt = Date.now();
   // freeze elapsedMs if running
   var frozen = timer.elapsedMs;
   if (timer.running && timer.startedAt !== null) {
@@ -1987,10 +2771,24 @@ function saveMatch() {
     actionOrder: actionOrder,
     rigori: rigori,
     phaseDurations: PHASE_DURATIONS,
+    phaseHistory: phaseHistory,
     storicoSavedId: storicoSavedId
   };
-  localStorage.setItem(MATCH_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(MATCH_KEY, JSON.stringify(state));
+  } catch (e) {}
 }
+
+// Se iPadOS chiude l'app in background, al riavvio si riparte dall'ultimo
+// salvataggio: salviamo quando la pagina viene nascosta o chiusa.
+function saveIfActive() {
+  if (matchActive) saveMatch();
+}
+
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'hidden') saveIfActive();
+});
+window.addEventListener('pagehide', saveIfActive);
 
 function clearMatch() {
   localStorage.removeItem(MATCH_KEY);
@@ -2024,6 +2822,8 @@ function restoreMatch(data) {
   cartellini = data.cartellini || [];
   rigori = data.rigori || [];
   storicoSavedId = data.storicoSavedId || null;
+  phaseHistory = Array.isArray(data.phaseHistory) ? data.phaseHistory.slice() : [];
+  pendingShooter = null;
   // Backfill actionOrder se il salvataggio è precedente all'introduzione dei
   // cartellini: assume tutti i gol prima, poi i cartellini (ordine indicativo).
   if (Array.isArray(data.actionOrder)) {
@@ -2278,7 +3078,7 @@ async function requestWakeLock() {
 }
 
 document.addEventListener('visibilitychange', function() {
-  if (document.visibilityState === 'visible') requestWakeLock();
+  if (document.visibilityState === 'visible' && matchActive) requestWakeLock();
 });
 
 // ── Format ms → MM:SS ──
@@ -2301,6 +3101,7 @@ var tickInterval = null;
 function updateDisplay() {
   var elapsed = getCurrentElapsed();
   timerDisplay.textContent = formatTime(elapsed);
+  if (timer.running && Date.now() - lastSaveAt >= AUTOSAVE_MS) saveMatch();
   if (timer.durataFaseMs !== null && elapsed >= timer.durataFaseMs) {
     timerDisplay.classList.add('expired');
     if (!beeped) { beeped = true; playWhistle((fase === '2T' || fase === '2TS') ? 3 : 2); }
@@ -2350,29 +3151,34 @@ var timeEditOverlay = document.getElementById('time-edit-overlay');
 var timeEditMin = document.getElementById('time-edit-min');
 var timeEditSec = document.getElementById('time-edit-sec');
 
+// Il tempo si modifica con bottoni +/− (niente tastiera software su iPad)
+var timeEditTotalSec = 0;
+var timeEditOpenedAt = 0;
+var TIME_EDIT_MAX_SEC = 99 * 60 + 59;
+
+function renderTimeEdit() {
+  timeEditMin.textContent = String(Math.floor(timeEditTotalSec / 60)).padStart(2, '0');
+  timeEditSec.textContent = String(timeEditTotalSec % 60).padStart(2, '0');
+}
+
 function openTimeEdit() {
   // Solo se in pausa e in una fase con timer
   if (timer.running) return;
   if (fase === 'RIGORI' || fase === 'FINITA') return;
-  var totalSec = Math.floor(timer.elapsedMs / 1000);
-  timeEditMin.value = Math.floor(totalSec / 60);
-  timeEditSec.value = totalSec % 60;
+  timeEditTotalSec = Math.floor(timer.elapsedMs / 1000);
+  renderTimeEdit();
+  timeEditOpenedAt = Date.now();
   timeEditOverlay.classList.add('open');
-  timeEditMin.focus();
-  timeEditMin.select();
 }
 
 function closeTimeEdit() {
   timeEditOverlay.classList.remove('open');
 }
 
+function isTimeEditOpen() { return timeEditOverlay.classList.contains('open'); }
+
 function confirmTimeEdit() {
-  var m = parseInt(timeEditMin.value) || 0;
-  var s = parseInt(timeEditSec.value) || 0;
-  if (m < 0) m = 0;
-  if (s < 0) s = 0;
-  if (s > 59) s = 59;
-  timer.elapsedMs = (m * 60 + s) * 1000;
+  timer.elapsedMs = timeEditTotalSec * 1000;
   beeped = timer.durataFaseMs !== null && timer.elapsedMs >= timer.durataFaseMs;
   updateDisplay();
   saveMatch();
@@ -2386,19 +3192,35 @@ timerDisplay.addEventListener('pointerdown', function(e) {
   }
 });
 
-document.getElementById('btn-time-confirm').addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  confirmTimeEdit();
+// Click (non pointerdown) + guardia anti tocco fantasma: il tap che ha
+// aperto l'overlay non deve premere il bottone che compare sotto il dito.
+function onOverlayTap(el, openedAtFn, fn) {
+  el.addEventListener('click', function(e) {
+    e.preventDefault();
+    if (Date.now() - openedAtFn() < GHOST_GUARD_MS) return;
+    fn(e);
+  });
+}
+
+var timeEditOpenedAtFn = function() { return timeEditOpenedAt; };
+
+timeEditOverlay.querySelectorAll('.time-step').forEach(function(btn) {
+  onOverlayTap(btn, timeEditOpenedAtFn, function() {
+    var step = parseInt(btn.dataset.step, 10);
+    timeEditTotalSec = Math.min(TIME_EDIT_MAX_SEC, Math.max(0, timeEditTotalSec + step));
+    renderTimeEdit();
+  });
 });
 
-document.getElementById('btn-time-cancel').addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  closeTimeEdit();
-});
+onOverlayTap(document.getElementById('btn-time-confirm'), timeEditOpenedAtFn, confirmTimeEdit);
+onOverlayTap(document.getElementById('btn-time-cancel'), timeEditOpenedAtFn, closeTimeEdit);
 
-// Conferma anche con Enter dentro i campi
-timeEditMin.addEventListener('keydown', function(e) { if (e.key === 'Enter') confirmTimeEdit(); });
-timeEditSec.addEventListener('keydown', function(e) { if (e.key === 'Enter') confirmTimeEdit(); });
+// Da tastiera (desktop): Enter conferma, Esc annulla
+document.addEventListener('keydown', function(e) {
+  if (!isTimeEditOpen() || isModalOpen()) return;
+  if (e.key === 'Enter') { e.preventDefault(); confirmTimeEdit(); }
+  else if (e.key === 'Escape') { e.preventDefault(); closeTimeEdit(); }
+});
 
 // ── Phase badges ──
 var rigoriPanel = document.getElementById('rigori-panel');
@@ -2451,13 +3273,7 @@ var rUndo = document.getElementById('r-undo');
 var rWinner = document.getElementById('r-winner');
 
 function getRigoriScore() {
-  var c = 0, t = 0;
-  for (var i = 0; i < rigori.length; i++) {
-    if (rigori[i].esito === 'gol') {
-      if (rigori[i].squadra === 'casa') c++; else t++;
-    }
-  }
-  return { casa: c, trasferta: t };
+  return rigoriScoreOf(rigori);
 }
 
 function getRigoriTurn() {
@@ -2467,31 +3283,25 @@ function getRigoriTurn() {
 }
 
 function getRigoriWinner() {
-  var sc = getRigoriScore();
-  var total = rigori.length;
-  var roundsDone = Math.floor(total / 2);
-  // both teams must have taken same number of kicks to evaluate
-  if (total % 2 !== 0) return null;
-  if (roundsDone < 1) return null;
+  return rigoriWinnerOf(rigori);
+}
 
-  // In first 5 rounds: check if one team can't catch up
-  if (roundsDone <= 5) {
-    var remaining = 5 - roundsDone;
-    // home can't catch up
-    if (sc.trasferta > sc.casa + remaining) return 'trasferta';
-    // away can't catch up
-    if (sc.casa > sc.trasferta + remaining) return 'casa';
-    // after 5 rounds, if not tied, we have a winner
-    if (roundsDone === 5 && sc.casa !== sc.trasferta) {
-      return sc.casa > sc.trasferta ? 'casa' : 'trasferta';
-    }
+// Vincitore della serie di rigori, o null se non ancora deciso.
+// Nei primi 5 tiri per squadra la serie finisce appena una squadra non può
+// più essere raggiunta, anche a metà turno (es. dopo il tiro della casa).
+// Oltre i 5 (ad oltranza) si decide solo a parità di tiri.
+function rigoriWinnerOf(arr) {
+  var kh = 0, ka = 0, h = 0, a = 0;
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i].squadra === 'casa') { kh++; if (arr[i].esito === 'gol') h++; }
+    else { ka++; if (arr[i].esito === 'gol') a++; }
   }
-
-  // Sudden death (after round 5): if scores differ after equal kicks
-  if (roundsDone > 5 && sc.casa !== sc.trasferta) {
-    return sc.casa > sc.trasferta ? 'casa' : 'trasferta';
+  if (kh <= 5 && ka <= 5) {
+    if (h > a + (5 - ka)) return 'casa';
+    if (a > h + (5 - kh)) return 'trasferta';
+    return null;
   }
-
+  if (kh === ka && h !== a) return h > a ? 'casa' : 'trasferta';
   return null;
 }
 
@@ -2553,19 +3363,53 @@ function updateRigoriUI() {
     rTurnLabel.textContent = '';
     rGol.disabled = true;
     rErr.disabled = true;
+    rShooter.classList.add('hidden');
   } else {
     rWinner.textContent = '';
     var turn = getRigoriTurn();
     rTurnLabel.textContent = turn === 'casa' ? squadre.casa.nome : squadre.trasferta.nome;
     rGol.disabled = false;
     rErr.disabled = false;
+    var rosa = turn === 'casa' ? squadre.casa.rosa : squadre.trasferta.rosa;
+    rShooter.classList.toggle('hidden', !rosa || rosa.length === 0);
+    rShooter.classList.toggle('chosen', !!pendingShooter);
+    rShooter.textContent = pendingShooter
+      ? 'Tiratore: ' + playerLabel(pendingShooter, '', '')
+      : 'Tiratore: scegli (facoltativo)';
   }
+}
+
+// Tiratore scelto per il prossimo rigore (facoltativo)
+var pendingShooter = null;
+var rShooter = document.getElementById('r-shooter');
+
+// Badge "✓" sui giocatori che hanno già tirato
+function shooterDecorator(squadra) {
+  return function(giocatore) {
+    var n = 0;
+    for (var i = 0; i < rigori.length; i++) {
+      if (rigori[i].squadra === squadra && rigori[i].giocatore === giocatore) n++;
+    }
+    return n ? { text: n > 1 ? '✓×' + n : '✓' } : null;
+  };
+}
+
+function openShooterPicker() {
+  if (getRigoriWinner()) return;
+  var turn = getRigoriTurn();
+  var rosa = turn === 'casa' ? squadre.casa.rosa : squadre.trasferta.rosa;
+  var nome = turn === 'casa' ? squadre.casa.nome : squadre.trasferta.nome;
+  openPlayerPicker('TIRATORE ' + nome, rosa, function(giocatore) {
+    pendingShooter = giocatore;
+    updateRigoriUI();
+  }, shooterDecorator(turn));
 }
 
 function addRigore(esito) {
   if (getRigoriWinner()) return;
   var turn = getRigoriTurn();
-  rigori.push({ squadra: turn, giocatore: '', esito: esito });
+  rigori.push({ squadra: turn, giocatore: pendingShooter || '', esito: esito });
+  pendingShooter = null;
   playWhistle('short');
   if (esito === 'gol') playCrowdCheer();
   updateRigoriUI();
@@ -2575,52 +3419,34 @@ function addRigore(esito) {
 function undoRigore() {
   if (rigori.length === 0) return;
   rigori.pop();
+  pendingShooter = null;
   updateRigoriUI();
   saveMatch();
 }
+
+rShooter.addEventListener('click', function(e) { e.preventDefault(); openShooterPicker(); });
 
 rGol.addEventListener('pointerdown', function(e) { e.preventDefault(); addRigore('gol'); });
 rErr.addEventListener('pointerdown', function(e) { e.preventDefault(); addRigore('errore'); });
 rUndo.addEventListener('pointerdown', function(e) { e.preventDefault(); undoRigore(); });
 
 // ── Score ──
-function getScore() {
-  var casa = 0, trasferta = 0;
-  for (var i = 0; i < marcatori.length; i++) {
-    if (marcatori[i].squadra === 'casa') casa++; else trasferta++;
-  }
-  return { casa: casa, trasferta: trasferta };
-}
-
 function updateScoreboard() {
-  var score = getScore();
+  var score = scoreOf(marcatori);
   scoreHome.textContent = score.casa;
   scoreAway.textContent = score.trasferta;
   scorersHome.innerHTML = '';
   scorersAway.innerHTML = '';
 
-  // Unisci gol e cartellini e ordina cronologicamente per fase + minuto
-  var events = [];
-  for (var i = 0; i < marcatori.length; i++) {
-    events.push({ kind: 'goal', data: marcatori[i] });
-  }
-  for (var j = 0; j < cartellini.length; j++) {
-    events.push({ kind: cartellini[j].tipo, data: cartellini[j] });
-  }
-  events.sort(function(a, b) {
-    var pa = PHASES.indexOf(a.data.fase);
-    var pb = PHASES.indexOf(b.data.fase);
-    if (pa !== pb) return pa - pb;
-    return a.data.minutoGioco - b.data.minutoGioco;
-  });
+  // Gol e cartellini in ordine cronologico (fase + minuto)
+  var events = collectEvents({ marcatori: marcatori, cartellini: cartellini });
 
   for (var k = 0; k < events.length; k++) {
     var ev = events[k];
     var li = document.createElement('li');
     var phaseLabel = PHASE_SHORT[ev.data.fase] || '';
-    var timeStr = ev.data.minutoGioco + "'" + (phaseLabel ? ' ' + phaseLabel : '');
-    var pg = parsePlayer(ev.data.giocatore || '');
-    var displayName = pg.numero ? pg.numero + ' ' + pg.nome : (pg.nome || 'Gol');
+    var timeStr = formatMinute(ev.data) + (phaseLabel ? ' ' + phaseLabel : '');
+    var displayName = playerLabel(ev.data.giocatore, 'Gol', '');
     if (ev.kind === 'goal') {
       li.textContent = displayName + ' — ' + timeStr;
       li.className = 'scorer-goal';
@@ -2636,9 +3462,25 @@ function updateScoreboard() {
   }
 }
 
+// Minuto di gioco corrente, arrotondato all'intero superiore. Oltre la
+// durata della fase diventa recupero: 20:34 in un tempo da 20' -> 20+1'.
 function getCurrentMinute() {
   var elapsed = getCurrentElapsed();
-  return Math.ceil(elapsed / 60000) || 1;
+  var dur = timer.durataFaseMs;
+  if (dur && elapsed > dur) {
+    return {
+      minutoGioco: Math.ceil(dur / 60000),
+      recupero: Math.max(1, Math.ceil((elapsed - dur) / 60000))
+    };
+  }
+  return { minutoGioco: Math.ceil(elapsed / 60000) || 1, recupero: 0 };
+}
+
+// Crea un evento (gol o cartellino) con il minuto catturato in precedenza
+function makeEvent(base, minute) {
+  base.minutoGioco = minute.minutoGioco;
+  if (minute.recupero) base.recupero = minute.recupero;
+  return base;
 }
 
 // ── Summary (FINITA screen) ──
@@ -2681,18 +3523,7 @@ function currentSummaryCtx() {
 function buildPhaseSection(phaseKey) {
   var ctx = currentSummaryCtx();
   var label = PHASE_LABELS[phaseKey];
-  var events = [];
-  for (var i = 0; i < ctx.marcatori.length; i++) {
-    if (ctx.marcatori[i].fase === phaseKey) {
-      events.push({ kind: 'goal', data: ctx.marcatori[i] });
-    }
-  }
-  for (var j = 0; j < ctx.cartellini.length; j++) {
-    if (ctx.cartellini[j].fase === phaseKey) {
-      events.push({ kind: ctx.cartellini[j].tipo, data: ctx.cartellini[j] });
-    }
-  }
-  events.sort(function(a, b) { return a.data.minutoGioco - b.data.minutoGioco; });
+  var events = collectEvents(ctx, phaseKey);
 
   var section = document.createElement('div');
   section.className = 'summary-phase';
@@ -2721,13 +3552,12 @@ function buildPhaseSection(phaseKey) {
 
     var minute = document.createElement('span');
     minute.className = 'summary-minute';
-    minute.textContent = ev.data.minutoGioco + "'";
+    minute.textContent = formatMinute(ev.data);
     row.appendChild(minute);
 
-    var pgs = parsePlayer(ev.data.giocatore || '');
     var name = document.createElement('span');
     name.className = 'summary-name';
-    name.textContent = pgs.numero ? pgs.numero + ' ' + pgs.nome : (pgs.nome || '—');
+    name.textContent = playerLabel(ev.data.giocatore, '—', '');
     row.appendChild(name);
 
     var typeEl = document.createElement('span');
@@ -2783,6 +3613,12 @@ function buildRigoriSection() {
     var homeEl = document.createElement('span');
     homeEl.className = 'r-outcome home ' + (homeKick ? (homeKick.esito === 'gol' ? 'gol' : 'err') : 'pending');
     homeEl.textContent = homeKick ? (homeKick.esito === 'gol' ? 'GOL' : 'ERR') : '—';
+    if (homeKick && homeKick.giocatore) {
+      var hName = document.createElement('span');
+      hName.className = 'r-shooter-name';
+      hName.textContent = playerLabel(homeKick.giocatore, '', '');
+      homeEl.insertBefore(hName, homeEl.firstChild);
+    }
     row.appendChild(homeEl);
 
     var num = document.createElement('span');
@@ -2794,6 +3630,12 @@ function buildRigoriSection() {
     var awayEl = document.createElement('span');
     awayEl.className = 'r-outcome away ' + (awayKick ? (awayKick.esito === 'gol' ? 'gol' : 'err') : 'pending');
     awayEl.textContent = awayKick ? (awayKick.esito === 'gol' ? 'GOL' : 'ERR') : '—';
+    if (awayKick && awayKick.giocatore) {
+      var aName = document.createElement('span');
+      aName.className = 'r-shooter-name';
+      aName.textContent = playerLabel(awayKick.giocatore, '', '');
+      awayEl.appendChild(aName);
+    }
     row.appendChild(awayEl);
 
     var dotA = document.createElement('span');
@@ -2810,36 +3652,18 @@ function buildRigoriSection() {
 // Decide quali fasi mostrare: 1T e 2T sempre; 1TS/2TS se contengono eventi
 // oppure se sono stati raggiunti i rigori (implica supplementari giocati).
 function phaseHasAnyEvent(phaseKey) {
-  var ctx = currentSummaryCtx();
-  for (var i = 0; i < ctx.marcatori.length; i++) {
-    if (ctx.marcatori[i].fase === phaseKey) return true;
-  }
-  for (var j = 0; j < ctx.cartellini.length; j++) {
-    if (ctx.cartellini[j].fase === phaseKey) return true;
-  }
-  return false;
+  return collectEvents(currentSummaryCtx(), phaseKey).length > 0;
 }
 
-// Score helper che legge dal contesto (vs getScore globale che legge da live)
-function getScoreFromCtx() {
-  var ctx = currentSummaryCtx();
-  var casa = 0, trasferta = 0;
-  for (var i = 0; i < ctx.marcatori.length; i++) {
-    if (ctx.marcatori[i].squadra === 'casa') casa++; else trasferta++;
+// Fasi da mostrare in riepilogo/export: 1T e 2T sempre, supplementari se
+// contengono eventi o se si è arrivati ai rigori.
+function summaryPhases(ctx) {
+  var phases = ['1T', '2T'];
+  var rig = ctx.rigori || [];
+  if (rig.length > 0 || phaseHasAnyEvent('1TS') || phaseHasAnyEvent('2TS')) {
+    phases.push('1TS', '2TS');
   }
-  return { casa: casa, trasferta: trasferta };
-}
-
-function getRigoriScoreFromCtx() {
-  var ctx = currentSummaryCtx();
-  var rigoriCtx = ctx.rigori || [];
-  var c = 0, t = 0;
-  for (var i = 0; i < rigoriCtx.length; i++) {
-    if (rigoriCtx[i].esito === 'gol') {
-      if (rigoriCtx[i].squadra === 'casa') c++; else t++;
-    }
-  }
-  return { casa: c, trasferta: t };
+  return phases;
 }
 
 function renderSummary() {
@@ -2847,14 +3671,14 @@ function renderSummary() {
   summaryNameHome.textContent = ctx.squadre.casa.nome;
   summaryNameAway.textContent = ctx.squadre.trasferta.nome;
 
-  var score = getScoreFromCtx();
+  var score = scoreOf(ctx.marcatori);
   summaryScoreHome.textContent = score.casa;
   summaryScoreAway.textContent = score.trasferta;
 
   // Indicazione rigori (sotto il punteggio) se presenti
   var rigoriCtx = ctx.rigori || [];
   if (rigoriCtx.length > 0) {
-    var rs = getRigoriScoreFromCtx();
+    var rs = rigoriScoreOf(rigoriCtx);
     summaryRigoriScore.textContent =
       '(dopo i rigori: ' + ctx.squadre.casa.nome + ' ' + rs.casa +
       ' — ' + rs.trasferta + ' ' + ctx.squadre.trasferta.nome + ')';
@@ -2864,9 +3688,7 @@ function renderSummary() {
 
   summaryContent.innerHTML = '';
 
-  var suppPlayed = rigoriCtx.length > 0 || phaseHasAnyEvent('1TS') || phaseHasAnyEvent('2TS');
-  var phasesToShow = ['1T', '2T'];
-  if (suppPlayed) phasesToShow.push('1TS', '2TS');
+  var phasesToShow = summaryPhases(ctx);
 
   for (var i = 0; i < phasesToShow.length; i++) {
     summaryContent.appendChild(buildPhaseSection(phasesToShow[i]));
@@ -2876,8 +3698,7 @@ function renderSummary() {
   if (rigoriSection) summaryContent.appendChild(rigoriSection);
 }
 
-btnNewMatchSummary.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
+onTap(btnNewMatchSummary, function() {
   showSetup();
 });
 
@@ -2949,25 +3770,6 @@ function formatStoricoDate(ts) {
     ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
 
-// Punteggio da un array marcatori (per entry dello storico)
-function scoreFromMarcatori(marc) {
-  var c = 0, t = 0;
-  for (var i = 0; i < marc.length; i++) {
-    if (marc[i].squadra === 'casa') c++; else t++;
-  }
-  return { casa: c, trasferta: t };
-}
-
-function rigoriScoreFromArr(arr) {
-  var c = 0, t = 0;
-  for (var i = 0; i < arr.length; i++) {
-    if (arr[i].esito === 'gol') {
-      if (arr[i].squadra === 'casa') c++; else t++;
-    }
-  }
-  return { casa: c, trasferta: t };
-}
-
 // ── Schermata storico ──
 var screenStorico = document.getElementById('screen-storico');
 var storicoListEl = document.getElementById('storico-list');
@@ -3025,7 +3827,7 @@ function buildStoricoRow(entry) {
   homeName.textContent = entry.squadre.casa.nome;
   matchEl.appendChild(homeName);
 
-  var sc = scoreFromMarcatori(entry.marcatori || []);
+  var sc = scoreOf(entry.marcatori || []);
   var scoreEl = document.createElement('span');
   scoreEl.className = 'storico-score-numbers';
   scoreEl.textContent = sc.casa + ' — ' + sc.trasferta;
@@ -3038,7 +3840,7 @@ function buildStoricoRow(entry) {
 
   var rigArr = entry.rigori || [];
   if (rigArr.length > 0) {
-    var rs = rigoriScoreFromArr(rigArr);
+    var rs = rigoriScoreOf(rigArr);
     var suf = document.createElement('span');
     suf.className = 'storico-rigori-suffix';
     suf.textContent = '(' + rs.casa + '-' + rs.trasferta + ' dcr)';
@@ -3053,11 +3855,12 @@ function buildStoricoRow(entry) {
   delBtn.setAttribute('aria-label', 'Elimina partita');
   delBtn.addEventListener('click', function(e) {
     e.stopPropagation();
-    if (confirm('Eliminare questa partita dallo storico?')) {
+    askConfirm('Eliminare questa partita dallo storico?', { okLabel: 'Elimina', danger: true }).then(function(ok) {
+      if (!ok) return;
       deleteFromStorico(entry.id);
       renderStoricoList();
       updateStoricoSetupButton();
-    }
+    });
   });
   row.appendChild(delBtn);
 
@@ -3093,29 +3896,27 @@ function exitStoricoView() {
   showStorico();
 }
 
-btnStoricoSetup.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
+onTap(btnStoricoSetup, function() {
   showStorico();
 });
 
-btnBackStorico.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
+onTap(btnBackStorico, function() {
   hideStorico();
   screenSetup.classList.add('active');
   updateStoricoSetupButton();
 });
 
-btnClearStorico.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  if (confirm('Eliminare tutte le partite salvate? L\'operazione non è reversibile.')) {
+onTap(btnClearStorico, function() {
+  askConfirm('Eliminare tutte le partite salvate? L\'operazione non è reversibile.',
+    { okLabel: 'Elimina tutto', danger: true }).then(function(ok) {
+    if (!ok) return;
     clearStoricoAll();
     renderStoricoList();
     updateStoricoSetupButton();
-  }
+  });
 });
 
-btnBackStoricoSummary.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
+onTap(btnBackStoricoSummary, function() {
   exitStoricoView();
 });
 
@@ -3136,14 +3937,14 @@ function buildSummaryText() {
   var nomeAway = ctx.squadre.trasferta.nome;
   var tagCasa = teamTag(nomeCasa);
   var tagAway = teamTag(nomeAway);
-  var sc = getScoreFromCtx();
+  var sc = scoreOf(ctx.marcatori);
   var rigoriCtx = ctx.rigori || [];
 
   var lines = [];
   lines.push('⚽ ' + nomeCasa + ' ' + sc.casa + ' — ' + sc.trasferta + ' ' + nomeAway);
 
   if (rigoriCtx.length > 0) {
-    var rs = getRigoriScoreFromCtx();
+    var rs = rigoriScoreOf(rigoriCtx);
     var winner = rs.casa > rs.trasferta ? nomeCasa : (rs.trasferta > rs.casa ? nomeAway : '');
     var rigoriLine = '🎯 Rigori: ' + rs.casa + ' — ' + rs.trasferta;
     if (winner) rigoriLine += ' (' + winner + ')';
@@ -3151,34 +3952,23 @@ function buildSummaryText() {
   }
 
   // Sezioni per fase (in ordine PT, ST, 1TS, 2TS)
-  var phases = ['1T', '2T'];
-  if (rigoriCtx.length > 0 || phaseHasAnyEvent('1TS') || phaseHasAnyEvent('2TS')) {
-    phases.push('1TS', '2TS');
-  }
+  var phases = summaryPhases(ctx);
 
   for (var p = 0; p < phases.length; p++) {
     var ph = phases[p];
-    var evs = [];
-    for (var i = 0; i < ctx.marcatori.length; i++) {
-      if (ctx.marcatori[i].fase === ph) evs.push({ kind: 'goal', data: ctx.marcatori[i] });
-    }
-    for (var j = 0; j < ctx.cartellini.length; j++) {
-      if (ctx.cartellini[j].fase === ph) evs.push({ kind: ctx.cartellini[j].tipo, data: ctx.cartellini[j] });
-    }
+    var evs = collectEvents(ctx, ph);
     if (evs.length === 0) continue; // omettiamo sezioni vuote
-    evs.sort(function(a, b) { return a.data.minutoGioco - b.data.minutoGioco; });
 
     lines.push('');
     lines.push(PHASE_LABELS[ph].toUpperCase());
     for (var k = 0; k < evs.length; k++) {
       var ev = evs[k];
       var tag = ev.data.squadra === 'casa' ? tagCasa : tagAway;
-      var pge = parsePlayer(ev.data.giocatore || '');
-      var nomeGioc = pge.numero ? '#' + pge.numero + ' ' + pge.nome : (pge.nome || '—');
+      var nomeGioc = playerLabel(ev.data.giocatore, '—', '#');
       var prefix = '';
       if (ev.kind === 'giallo') prefix = '🟨 ';
       else if (ev.kind === 'rosso') prefix = '🟥 ';
-      lines.push(' ' + ev.data.minutoGioco + "' " + prefix + nomeGioc + ' (' + tag + ')');
+      lines.push(' ' + formatMinute(ev.data) + ' ' + prefix + nomeGioc + ' (' + tag + ')');
     }
   }
 
@@ -3189,8 +3979,8 @@ function buildSummaryText() {
     for (var r = 0; r < totalRounds; r++) {
       var hk = rigoriCtx[r * 2];
       var ak = rigoriCtx[r * 2 + 1];
-      var hSym = hk ? (hk.esito === 'gol' ? '✓' : '✗') : '—';
-      var aSym = ak ? (ak.esito === 'gol' ? '✓' : '✗') : '—';
+      var hSym = hk ? (hk.esito === 'gol' ? '✓' : '✗') + (hk.giocatore ? ' ' + playerLabel(hk.giocatore, '', '#') : '') : '—';
+      var aSym = ak ? (ak.esito === 'gol' ? '✓' : '✗') + (ak.giocatore ? ' ' + playerLabel(ak.giocatore, '', '#') : '') : '—';
       lines.push(' ' + (r + 1) + '. ' + tagCasa + ' ' + hSym + ' — ' + tagAway + ' ' + aSym);
     }
   }
@@ -3232,12 +4022,11 @@ function exportSummary() {
       return;
     } catch (e) {}
   }
-  // Ultimo fallback: prompt con il testo selezionabile
-  try { prompt('Copia il riepilogo:', text); } catch (e) {}
+  // Ultimo fallback: testo selezionabile in una finestra
+  showCopyText('Copia il riepilogo:', text);
 }
 
-document.getElementById('btn-export-summary').addEventListener('pointerdown', function(e) {
-  e.preventDefault();
+onTap(document.getElementById('btn-export-summary'), function() {
   exportSummary();
 });
 
@@ -3258,7 +4047,12 @@ var ROLE_ORDER = [
   { tag: '(P)', label: 'Portieri' }
 ];
 
-function populatePlayerGrid(grid, rosa, onClick) {
+// Momento di apertura dell'overlay giocatori corrente (guardia tocco fantasma)
+var overlayOpenedAt = 0;
+var overlayOpenedAtFn = function() { return overlayOpenedAt; };
+
+// decorate(giocatore) opzionale: { yellow: n, red: n, text: '', dim: bool }
+function populatePlayerGrid(grid, rosa, onClick, decorate) {
   grid.innerHTML = '';
   // Raggruppa giocatori per ruolo
   var groups = {};
@@ -3306,8 +4100,34 @@ function populatePlayerGrid(grid, rosa, onClick) {
       } else {
         btn.textContent = players[p];
       }
+      var deco = decorate ? decorate(players[p]) : null;
+      if (deco && (deco.yellow || deco.red || deco.text)) {
+        var badges = document.createElement('span');
+        badges.className = 'player-badges';
+        for (var y = 0; y < (deco.yellow || 0); y++) {
+          var my = document.createElement('span');
+          my.className = 'card-mark yellow';
+          badges.appendChild(my);
+        }
+        for (var rd = 0; rd < (deco.red || 0); rd++) {
+          var mr = document.createElement('span');
+          mr.className = 'card-mark red';
+          badges.appendChild(mr);
+        }
+        if (deco.text) {
+          var bt = document.createElement('span');
+          bt.className = 'player-badge-text';
+          bt.textContent = deco.text;
+          badges.appendChild(bt);
+        }
+        btn.appendChild(badges);
+      }
+      if (deco && deco.dim) btn.classList.add('player-expelled');
       (function(giocatore) {
-        btn.addEventListener('click', function() { onClick(giocatore); });
+        btn.addEventListener('click', function() {
+          if (Date.now() - overlayOpenedAt < GHOST_GUARD_MS) return;
+          onClick(giocatore);
+        });
       })(players[p]);
       grid.appendChild(btn);
     }
@@ -3319,39 +4139,64 @@ function populatePlayerGrid(grid, rosa, onClick) {
   appendGroup('Altri', groups['_other']);
 }
 
+// Cartellini già ricevuti da un giocatore (solo informativo: nessuna regola imposta)
+function cardCounts(squadra, giocatore) {
+  var res = { yellow: 0, red: 0 };
+  for (var i = 0; i < cartellini.length; i++) {
+    var c = cartellini[i];
+    if (c.squadra !== squadra || c.giocatore !== giocatore) continue;
+    if (c.tipo === 'giallo') res.yellow++; else res.red++;
+  }
+  return res;
+}
+
+function cardDecorator(squadra) {
+  return function(giocatore) {
+    var c = cardCounts(squadra, giocatore);
+    c.dim = c.red > 0 || c.yellow >= 2;
+    return c;
+  };
+}
+
 // ── Goal overlay ──
 var goalOverlay = document.getElementById('goal-overlay');
 var overlayTitle = document.getElementById('overlay-title');
 var overlayGrid = document.getElementById('overlay-grid');
 var overlayCancel = document.getElementById('overlay-cancel');
-var pendingGoal = null; // { squadra, minutoGioco, fase }
+var pendingGoal = null; // { squadra, minute: { minutoGioco, recupero }, fase }
+
+// Overlay di scelta giocatore (usato per marcatore e tiratore dei rigori)
+function openPlayerPicker(title, rosa, onPick, decorate) {
+  overlayTitle.textContent = title;
+  overlayOpenedAt = Date.now();
+  populatePlayerGrid(overlayGrid, rosa, function(giocatore) {
+    goalOverlay.classList.remove('open');
+    onPick(giocatore);
+  }, decorate);
+  goalOverlay.classList.add('open');
+}
 
 function openGoalOverlay(squadra) {
-  if (fase === 'FINITA') return;
+  if (fase === 'FINITA' || fase === 'RIGORI') return;
   var minuto = getCurrentMinute();
   var rosa = squadra === 'casa' ? squadre.casa.rosa : squadre.trasferta.rosa;
   var nome = squadra === 'casa' ? squadre.casa.nome : squadre.trasferta.nome;
 
-  pendingGoal = { squadra: squadra, minutoGioco: minuto, fase: fase };
-  overlayTitle.textContent = 'GOL ' + nome + ' — ' + minuto + "'";
-
-  populatePlayerGrid(overlayGrid, rosa, function(giocatore) {
-    marcatori.push({
+  pendingGoal = { squadra: squadra, minute: minuto, fase: fase };
+  openPlayerPicker('GOL ' + nome + ' — ' + formatMinute(minuto), rosa, function(giocatore) {
+    if (!pendingGoal) return;
+    marcatori.push(makeEvent({
       squadra: pendingGoal.squadra,
       giocatore: giocatore,
-      minutoGioco: pendingGoal.minutoGioco,
       fase: pendingGoal.fase
-    });
+    }, pendingGoal.minute));
     actionOrder.push('goal');
     undoStack = [];
     pendingGoal = null;
-    goalOverlay.classList.remove('open');
     updateScoreboard();
     playCrowdCheer();
     saveMatch();
-  });
-
-  goalOverlay.classList.add('open');
+  }, cardDecorator(squadra));
 }
 
 function closeGoalOverlay() {
@@ -3359,10 +4204,7 @@ function closeGoalOverlay() {
   goalOverlay.classList.remove('open');
 }
 
-overlayCancel.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  closeGoalOverlay();
-});
+onOverlayTap(overlayCancel, overlayOpenedAtFn, closeGoalOverlay);
 
 // ── Card overlay (ammonizioni / espulsioni) ──
 var cardOverlay = document.getElementById('card-overlay');
@@ -3371,27 +4213,32 @@ var cardOverlayGrid = document.getElementById('card-overlay-grid');
 var cardOverlayCancel = document.getElementById('card-overlay-cancel');
 var cardTeamGroup = document.getElementById('card-team-group');
 var cardTypeGroup = document.getElementById('card-type-group');
-var pendingCard = null; // { squadra, tipo, minutoGioco, fase }
+var pendingCard = null; // { squadra, tipo, minute: { minutoGioco, recupero }, fase }
 
 function renderCardPlayerGrid() {
   if (!pendingCard) return;
   var rosa = pendingCard.squadra === 'casa' ? squadre.casa.rosa : squadre.trasferta.rosa;
+  var squadraCard = pendingCard.squadra;
   populatePlayerGrid(cardOverlayGrid, rosa, function(giocatore) {
-    cartellini.push({
+    cartellini.push(makeEvent({
       squadra: pendingCard.squadra,
       giocatore: giocatore,
       tipo: pendingCard.tipo,
-      minutoGioco: pendingCard.minutoGioco,
       fase: pendingCard.fase
-    });
+    }, pendingCard.minute));
     actionOrder.push('card');
     undoStack = [];
+    var tipo = pendingCard.tipo;
     pendingCard = null;
     cardOverlay.classList.remove('open');
     updateScoreboard();
     playWhistle('short');
     saveMatch();
-  });
+    var counts = cardCounts(squadraCard, giocatore);
+    if (tipo === 'giallo' && counts.yellow >= 2) {
+      showToast('⚠ Secondo giallo per ' + playerLabel(giocatore, '', ''));
+    }
+  }, cardDecorator(squadraCard));
 }
 
 function updateCardToggleUI() {
@@ -3405,13 +4252,14 @@ function updateCardToggleUI() {
     b.classList.toggle('active', b.dataset.type === pendingCard.tipo);
   });
   var nomeSquadra = pendingCard.squadra === 'casa' ? squadre.casa.nome : squadre.trasferta.nome;
-  cardOverlayTitle.textContent = 'CARTELLINO ' + nomeSquadra + ' — ' + pendingCard.minutoGioco + "'";
+  cardOverlayTitle.textContent = 'CARTELLINO ' + nomeSquadra + ' — ' + formatMinute(pendingCard.minute);
 }
 
 function openCardOverlay() {
   if (fase === 'FINITA' || fase === 'RIGORI') return;
   var minuto = getCurrentMinute();
-  pendingCard = { squadra: 'casa', tipo: 'giallo', minutoGioco: minuto, fase: fase };
+  pendingCard = { squadra: 'casa', tipo: 'giallo', minute: minuto, fase: fase };
+  overlayOpenedAt = Date.now();
   updateCardToggleUI();
   renderCardPlayerGrid();
   cardOverlay.classList.add('open');
@@ -3423,6 +4271,7 @@ function closeCardOverlay() {
 }
 
 cardTeamGroup.addEventListener('click', function(e) {
+  if (Date.now() - overlayOpenedAt < GHOST_GUARD_MS) return;
   var btn = e.target.closest ? e.target.closest('button') : null;
   if (!btn || !pendingCard) return;
   pendingCard.squadra = btn.dataset.team;
@@ -3431,30 +4280,54 @@ cardTeamGroup.addEventListener('click', function(e) {
 });
 
 cardTypeGroup.addEventListener('click', function(e) {
+  if (Date.now() - overlayOpenedAt < GHOST_GUARD_MS) return;
   var btn = e.target.closest ? e.target.closest('button') : null;
   if (!btn || !pendingCard) return;
   pendingCard.tipo = btn.dataset.type;
   updateCardToggleUI();
 });
 
-cardOverlayCancel.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  closeCardOverlay();
-});
+onOverlayTap(cardOverlayCancel, overlayOpenedAtFn, closeCardOverlay);
 
 // Annulla l'ultima azione registrata (gol o cartellino) in base a actionOrder.
-function undoLastGoal() {
-  if (actionOrder.length === 0) return;
-  var last = actionOrder.pop();
-  if (last === 'goal') {
-    if (marcatori.length === 0) return;
-    undoStack.push({ type: 'goal', event: marcatori.pop() });
-  } else {
-    if (cartellini.length === 0) return;
-    undoStack.push({ type: 'card', event: cartellini.pop() });
-  }
+// Descrizione breve di un evento per conferme e toast: "Gol 10 Riva (A) 13' PT"
+function describeEvent(type, ev) {
+  var what = type === 'goal' ? 'Gol' : (ev.tipo === 'rosso' ? 'Espulsione' : 'Ammonizione');
+  var team = ev.squadra === 'casa' ? squadre.casa.nome : squadre.trasferta.nome;
+  return what + ' ' + playerLabel(ev.giocatore, team, '') + ' ' + formatMinute(ev) +
+    (PHASE_SHORT[ev.fase] ? ' ' + PHASE_SHORT[ev.fase] : '');
+}
+
+function doUndo(type) {
+  actionOrder.pop();
+  var ev = type === 'goal' ? marcatori.pop() : cartellini.pop();
+  undoStack.push({ type: type, event: ev });
   updateScoreboard();
   saveMatch();
+  showToast('Annullato: ' + describeEvent(type, ev));
+}
+
+// Annulla l'ultima azione registrata (gol o cartellino). Se appartiene a una
+// fase precedente chiede conferma: annullare un gol del 2T durante i
+// supplementari cambierebbe il risultato che li ha determinati.
+function undoLastGoal() {
+  if (actionOrder.length === 0) return;
+  var type = actionOrder[actionOrder.length - 1];
+  var list = type === 'goal' ? marcatori : cartellini;
+  if (list.length === 0) { actionOrder.pop(); return; }
+  var ev = list[list.length - 1];
+  if (ev.fase === fase) { doUndo(type); return; }
+  var msg = 'L\'ultimo evento è di una fase precedente:\n' + describeEvent(type, ev) + '\n\nAnnullarlo comunque?';
+  if (type === 'goal' && (fase === '1TS' || fase === '2TS')) {
+    msg += '\nIl risultato dei tempi regolamentari cambierebbe.';
+  }
+  askConfirm(msg, { okLabel: 'Annulla evento', cancelLabel: 'Indietro', danger: true }).then(function(ok) {
+    if (!ok) return;
+    // l'ultima azione potrebbe essere cambiata mentre il modale era aperto
+    var cur = type === 'goal' ? marcatori : cartellini;
+    if (actionOrder[actionOrder.length - 1] !== type || cur[cur.length - 1] !== ev) return;
+    doUndo(type);
+  });
 }
 
 function redoLastGoal() {
@@ -3469,46 +4342,112 @@ function redoLastGoal() {
   }
   updateScoreboard();
   saveMatch();
+  showToast('Ripristinato: ' + describeEvent(restored.type, restored.event));
 }
 
 // ── Phase transitions ──
-function goToPhase(newPhase) {
+var PHASE_NAMES = {
+  '1T': 'Primo tempo', '2T': 'Secondo tempo',
+  '1TS': 'Primo supplementare', '2TS': 'Secondo supplementare',
+  'RIGORI': 'Rigori', 'FINITA': 'Fine partita'
+};
+
+// Entra in una fase con il timer in pausa al tempo indicato.
+function enterPhase(newPhase, elapsedMs) {
   if (timer.running) pause();
   fase = newPhase;
-  timer.elapsedMs = 0;
+  timer.elapsedMs = elapsedMs || 0;
   timer.startedAt = null;
   timer.running = false;
   timer.durataFaseMs = PHASE_DURATIONS[newPhase] || null;
-  beeped = false;
-  if (newPhase === 'RIGORI') rigori = [];
+  beeped = timer.durataFaseMs !== null && timer.elapsedMs >= timer.durataFaseMs;
+  pendingShooter = null;
   btnPlayPause.textContent = '▶ PLAY';
   btnPlayPause.classList.remove('playing');
-  // Snapshot automatica nello storico al primo ingresso in FINITA
-  if (newPhase === 'FINITA' && !storicoSavedId) {
-    var entry = buildStoricoEntryFromLive();
-    addToStorico(entry);
-    storicoSavedId = entry.id;
-  }
+  if (newPhase === 'FINITA') saveToStorico();
   updatePhaseBadges();
   updateDisplay();
   saveMatch();
 }
 
+// Snapshot nello storico all'ingresso in FINITA. Se la partita era già
+// stata salvata (si è tornati indietro e poi conclusa di nuovo) l'entry
+// esistente viene aggiornata invece di duplicarla.
+function saveToStorico() {
+  var entry = buildStoricoEntryFromLive();
+  if (storicoSavedId) {
+    var arr = loadStorico();
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i].id === storicoSavedId) {
+        entry.id = storicoSavedId;
+        entry.data = arr[i].data;
+        arr[i] = entry;
+        saveStorico(arr);
+        return;
+      }
+    }
+  }
+  addToStorico(entry);
+  storicoSavedId = entry.id;
+}
+
+// Avanza a una nuova fase ricordando quella lasciata (fase + tempo giocato)
+function goToPhase(newPhase) {
+  if (timer.running) pause();
+  phaseHistory.push({ fase: fase, elapsedMs: timer.elapsedMs });
+  enterPhase(newPhase, 0);
+}
+
 function nextPhase() {
   var idx = PHASES.indexOf(fase);
   if (idx >= PHASES.length - 1) return;
-  if (!confirm('Passare alla fase successiva?')) return;
-  var score = getScore();
-  var tied = score.casa === score.trasferta;
-  if (fase === '2T' && !tied) { goToPhase('FINITA'); return; }
-  if (fase === '2TS' && !tied) { goToPhase('FINITA'); return; }
-  goToPhase(PHASES[idx + 1]);
+  askConfirm('Passare alla fase successiva?', { okLabel: 'Fase successiva' }).then(function(ok) {
+    if (!ok || PHASES.indexOf(fase) !== idx) return;
+    var score = scoreOf(marcatori);
+    var tied = score.casa === score.trasferta;
+    if (fase === '2T' && !tied) { goToPhase('FINITA'); return; }
+    if (fase === '2TS' && !tied) { goToPhase('FINITA'); return; }
+    goToPhase(PHASES[idx + 1]);
+  });
+}
+
+// Fase a cui torna "Fase precedente". Usa la storia delle fasi; per le
+// partite salvate prima che esistesse, la ricostruisce dal punteggio.
+function previousPhaseInfo() {
+  if (phaseHistory.length) return phaseHistory[phaseHistory.length - 1];
+  var idx = PHASES.indexOf(fase);
+  if (idx <= 0) return null;
+  var prev = PHASES[idx - 1];
+  if (fase === 'FINITA' && rigori.length === 0) {
+    var reg = scoreOf(marcatori.filter(function(m) { return m.fase === '1T' || m.fase === '2T'; }));
+    prev = reg.casa === reg.trasferta ? '2TS' : '2T';
+  }
+  return { fase: prev, elapsedMs: PHASE_DURATIONS[prev] || 0 };
 }
 
 function prevPhase() {
-  var idx = PHASES.indexOf(fase);
-  if (idx <= 0) return;
-  goToPhase(PHASES[idx - 1]);
+  var info = previousPhaseInfo();
+  if (!info) return;
+  var from = fase;
+  var clearsRigori = fase === 'RIGORI' && rigori.length > 0;
+  var msg = 'Tornare a: ' + PHASE_NAMES[info.fase] + ' (' + formatTime(info.elapsedMs) + ')?';
+  if (clearsRigori) msg += '\nI ' + rigori.length + ' rigori registrati verranno cancellati.';
+  if (fase === 'FINITA') msg += '\nLa partita nello storico verrà aggiornata quando finirà di nuovo.';
+  askConfirm(msg, { okLabel: 'Torna indietro', danger: clearsRigori }).then(function(ok) {
+    if (!ok || fase !== from) return;
+    if (phaseHistory.length) phaseHistory.pop();
+    if (clearsRigori) rigori = [];
+    enterPhase(info.fase, info.elapsedMs);
+  });
+}
+
+// "Nuova partita" dal menu: chiede conferma se la partita non è finita
+function confirmNewMatch() {
+  if (fase === 'FINITA') { showSetup(); return; }
+  askConfirm('Abbandonare la partita in corso?\nIl risultato non verrà salvato nello storico.',
+    { okLabel: 'Abbandona', danger: true }).then(function(ok) {
+    if (ok) showSetup();
+  });
 }
 
 // ── Settings menu ──
@@ -3528,7 +4467,7 @@ btnPlayPause.addEventListener('pointerdown', function(e) { e.preventDefault(); t
 btnNextPhase.addEventListener('pointerdown', function(e) { e.preventDefault(); nextPhase(); });
 btnSettings.addEventListener('pointerdown', function(e) { e.preventDefault(); toggleSettings(e); });
 btnPrevPhase.addEventListener('pointerdown', function(e) { e.preventDefault(); prevPhase(); closeSettings(); });
-btnNewMatch.addEventListener('pointerdown', function(e) { e.preventDefault(); closeSettings(); showSetup(); });
+btnNewMatch.addEventListener('pointerdown', function(e) { e.preventDefault(); closeSettings(); confirmNewMatch(); });
 btnGoalHome.addEventListener('pointerdown', function(e) { e.preventDefault(); openGoalOverlay('casa'); });
 btnGoalAway.addEventListener('pointerdown', function(e) { e.preventDefault(); openGoalOverlay('trasferta'); });
 btnUndo.addEventListener('pointerdown', function(e) { e.preventDefault(); undoLastGoal(); });
@@ -3547,18 +4486,18 @@ var btnThemeSetup = document.getElementById('btn-theme-setup');
 var btnThemeMatch = document.getElementById('btn-theme-match');
 
 function applyTheme(theme) {
-  if (theme === 'light') {
-    document.body.classList.add('light-theme');
-  } else {
-    document.body.classList.remove('light-theme');
-  }
+  document.documentElement.classList.toggle('light-theme', theme === 'light');
+  var meta = document.getElementById('meta-theme-color');
+  if (meta) meta.setAttribute('content', theme === 'light' ? '#f0f0f0' : '#0d0d0d');
+  // Il contrasto dei colori squadra dipende dallo sfondo del tema
+  applyTeamColors(currentHomeSchema, currentAwaySchema);
   var label = theme === 'light' ? 'Tema: chiaro' : 'Tema: scuro';
   btnThemeSetup.textContent = label;
   btnThemeMatch.textContent = label;
 }
 
 function toggleTheme() {
-  var current = document.body.classList.contains('light-theme') ? 'light' : 'dark';
+  var current = document.documentElement.classList.contains('light-theme') ? 'light' : 'dark';
   var next = current === 'light' ? 'dark' : 'light';
   try { localStorage.setItem(THEME_KEY, next); } catch(e) {}
   applyTheme(next);
@@ -3569,7 +4508,7 @@ var savedTheme = null;
 try { savedTheme = localStorage.getItem(THEME_KEY); } catch(e) {}
 applyTheme(savedTheme || 'dark');
 
-btnThemeSetup.addEventListener('pointerdown', function(e) { e.preventDefault(); toggleTheme(); });
+onTap(btnThemeSetup, toggleTheme);
 btnThemeMatch.addEventListener('pointerdown', function(e) { e.preventDefault(); toggleTheme(); closeSettings(); });
 
 // ═══════════════════════════════════════════
@@ -3586,8 +4525,69 @@ if (saved) {
 // ═══════════════════════════════════════════
 // SERVICE WORKER
 // ═══════════════════════════════════════════
+// La pagina viene caricata "prima dalla rete" dal service worker, quindi un
+// deploy arriva al primo avvio online. Se però l'app resta aperta in
+// background per giorni (iPad), al ritorno in primo piano controlliamo se
+// index.html è cambiato sul server e proponiamo di ricaricare.
+var updateBanner = document.getElementById('update-banner');
+var appVersionTag = null;
+
+function fetchAppVersionTag() {
+  return fetch('./', { method: 'HEAD', cache: 'no-store' }).then(function(r) {
+    if (!r.ok) return null;
+    return r.headers.get('ETag') || r.headers.get('Last-Modified');
+  }).catch(function() { return null; });
+}
+
+function showUpdateBanner() {
+  updateBanner.classList.add('show');
+}
+
+function checkForUpdate() {
+  fetchAppVersionTag().then(function(tag) {
+    if (!tag) return;
+    // Avvio offline: il riferimento viene letto al primo controllo online
+    if (!appVersionTag) { appVersionTag = tag; return; }
+    if (tag !== appVersionTag) showUpdateBanner();
+  });
+}
+
+fetchAppVersionTag().then(function(tag) { appVersionTag = tag; });
+
+document.getElementById('btn-update-reload').addEventListener('click', function() {
+  saveIfActive();
+  location.reload();
+});
+document.getElementById('btn-update-dismiss').addEventListener('click', function() {
+  updateBanner.classList.remove('show');
+});
+
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw2.js');
+  var hadSwController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw2.js').then(function(reg) {
+    // Nuovo service worker attivato mentre la pagina è aperta
+    reg.addEventListener('updatefound', function() {
+      var nw = reg.installing;
+      if (!nw) return;
+      nw.addEventListener('statechange', function() {
+        if (nw.state === 'activated' && hadSwController) showUpdateBanner();
+      });
+    });
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'visible') {
+        try { reg.update().catch(function() {}); } catch (e) {}
+      }
+    });
+  }).catch(function() {});
+}
+
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') checkForUpdate();
+});
+
+// Chiede al browser di non cancellare localStorage in caso di poco spazio
+if (navigator.storage && navigator.storage.persist) {
+  try { navigator.storage.persist().catch(function() {}); } catch (e) {}
 }
 </script>
 
