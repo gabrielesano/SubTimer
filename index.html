@@ -726,8 +726,8 @@ html:not([data-kit-away]) .kit-away { display: none; }
   border-color: #ef4444;
 }
 
-/* ── TABELLINO MARKERS ── */
-.scorers .card-mark {
+/* ── TABELLINO MARKERS (tabellino, riepilogo, griglia giocatori) ── */
+.card-mark {
   display: inline-block;
   width: 0.65em;
   height: 0.95em;
@@ -736,12 +736,33 @@ html:not([data-kit-away]) .kit-away { display: none; }
   margin-right: 0.35em;
 }
 
-.scorers .card-mark.yellow {
+.card-mark.yellow {
   background: #eab308;
 }
 
-.scorers .card-mark.red {
+.card-mark.red {
   background: #ef4444;
+}
+
+/* Badge sui bottoni giocatore: cartellini già ricevuti, rigore già tirato */
+.player-badges {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.4em;
+  vertical-align: baseline;
+}
+
+.player-badges .card-mark { margin-right: 0.15em; }
+
+.player-badge-text {
+  font-size: 0.7em;
+  font-weight: 800;
+  color: var(--text-dim);
+  margin-left: 0.2em;
+}
+
+.overlay-grid button.player-expelled {
+  opacity: 0.55;
 }
 
 .scorers li.scorer-card {
@@ -3896,7 +3917,12 @@ var ROLE_ORDER = [
   { tag: '(P)', label: 'Portieri' }
 ];
 
-function populatePlayerGrid(grid, rosa, onClick) {
+// Momento di apertura dell'overlay giocatori corrente (guardia tocco fantasma)
+var overlayOpenedAt = 0;
+var overlayOpenedAtFn = function() { return overlayOpenedAt; };
+
+// decorate(giocatore) opzionale: { yellow: n, red: n, text: '', dim: bool }
+function populatePlayerGrid(grid, rosa, onClick, decorate) {
   grid.innerHTML = '';
   // Raggruppa giocatori per ruolo
   var groups = {};
@@ -3944,8 +3970,34 @@ function populatePlayerGrid(grid, rosa, onClick) {
       } else {
         btn.textContent = players[p];
       }
+      var deco = decorate ? decorate(players[p]) : null;
+      if (deco && (deco.yellow || deco.red || deco.text)) {
+        var badges = document.createElement('span');
+        badges.className = 'player-badges';
+        for (var y = 0; y < (deco.yellow || 0); y++) {
+          var my = document.createElement('span');
+          my.className = 'card-mark yellow';
+          badges.appendChild(my);
+        }
+        for (var rd = 0; rd < (deco.red || 0); rd++) {
+          var mr = document.createElement('span');
+          mr.className = 'card-mark red';
+          badges.appendChild(mr);
+        }
+        if (deco.text) {
+          var bt = document.createElement('span');
+          bt.className = 'player-badge-text';
+          bt.textContent = deco.text;
+          badges.appendChild(bt);
+        }
+        btn.appendChild(badges);
+      }
+      if (deco && deco.dim) btn.classList.add('player-expelled');
       (function(giocatore) {
-        btn.addEventListener('click', function() { onClick(giocatore); });
+        btn.addEventListener('click', function() {
+          if (Date.now() - overlayOpenedAt < GHOST_GUARD_MS) return;
+          onClick(giocatore);
+        });
       })(players[p]);
       grid.appendChild(btn);
     }
@@ -3955,6 +4007,25 @@ function populatePlayerGrid(grid, rosa, onClick) {
     appendGroup(ROLE_ORDER[r4].label, groups[ROLE_ORDER[r4].tag]);
   }
   appendGroup('Altri', groups['_other']);
+}
+
+// Cartellini già ricevuti da un giocatore (solo informativo: nessuna regola imposta)
+function cardCounts(squadra, giocatore) {
+  var res = { yellow: 0, red: 0 };
+  for (var i = 0; i < cartellini.length; i++) {
+    var c = cartellini[i];
+    if (c.squadra !== squadra || c.giocatore !== giocatore) continue;
+    if (c.tipo === 'giallo') res.yellow++; else res.red++;
+  }
+  return res;
+}
+
+function cardDecorator(squadra) {
+  return function(giocatore) {
+    var c = cardCounts(squadra, giocatore);
+    c.dim = c.red > 0 || c.yellow >= 2;
+    return c;
+  };
 }
 
 // ── Goal overlay ──
@@ -3971,6 +4042,7 @@ function openGoalOverlay(squadra) {
   var nome = squadra === 'casa' ? squadre.casa.nome : squadre.trasferta.nome;
 
   pendingGoal = { squadra: squadra, minute: minuto, fase: fase };
+  overlayOpenedAt = Date.now();
   overlayTitle.textContent = 'GOL ' + nome + ' — ' + formatMinute(minuto);
 
   populatePlayerGrid(overlayGrid, rosa, function(giocatore) {
@@ -3986,7 +4058,7 @@ function openGoalOverlay(squadra) {
     updateScoreboard();
     playCrowdCheer();
     saveMatch();
-  });
+  }, cardDecorator(squadra));
 
   goalOverlay.classList.add('open');
 }
@@ -3996,10 +4068,7 @@ function closeGoalOverlay() {
   goalOverlay.classList.remove('open');
 }
 
-overlayCancel.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  closeGoalOverlay();
-});
+onOverlayTap(overlayCancel, overlayOpenedAtFn, closeGoalOverlay);
 
 // ── Card overlay (ammonizioni / espulsioni) ──
 var cardOverlay = document.getElementById('card-overlay');
@@ -4013,6 +4082,7 @@ var pendingCard = null; // { squadra, tipo, minute: { minutoGioco, recupero }, f
 function renderCardPlayerGrid() {
   if (!pendingCard) return;
   var rosa = pendingCard.squadra === 'casa' ? squadre.casa.rosa : squadre.trasferta.rosa;
+  var squadraCard = pendingCard.squadra;
   populatePlayerGrid(cardOverlayGrid, rosa, function(giocatore) {
     cartellini.push(makeEvent({
       squadra: pendingCard.squadra,
@@ -4022,12 +4092,17 @@ function renderCardPlayerGrid() {
     }, pendingCard.minute));
     actionOrder.push('card');
     undoStack = [];
+    var tipo = pendingCard.tipo;
     pendingCard = null;
     cardOverlay.classList.remove('open');
     updateScoreboard();
     playWhistle('short');
     saveMatch();
-  });
+    var counts = cardCounts(squadraCard, giocatore);
+    if (tipo === 'giallo' && counts.yellow >= 2) {
+      showToast('⚠ Secondo giallo per ' + playerLabel(giocatore, '', ''));
+    }
+  }, cardDecorator(squadraCard));
 }
 
 function updateCardToggleUI() {
@@ -4048,6 +4123,7 @@ function openCardOverlay() {
   if (fase === 'FINITA' || fase === 'RIGORI') return;
   var minuto = getCurrentMinute();
   pendingCard = { squadra: 'casa', tipo: 'giallo', minute: minuto, fase: fase };
+  overlayOpenedAt = Date.now();
   updateCardToggleUI();
   renderCardPlayerGrid();
   cardOverlay.classList.add('open');
@@ -4059,6 +4135,7 @@ function closeCardOverlay() {
 }
 
 cardTeamGroup.addEventListener('click', function(e) {
+  if (Date.now() - overlayOpenedAt < GHOST_GUARD_MS) return;
   var btn = e.target.closest ? e.target.closest('button') : null;
   if (!btn || !pendingCard) return;
   pendingCard.squadra = btn.dataset.team;
@@ -4067,30 +4144,54 @@ cardTeamGroup.addEventListener('click', function(e) {
 });
 
 cardTypeGroup.addEventListener('click', function(e) {
+  if (Date.now() - overlayOpenedAt < GHOST_GUARD_MS) return;
   var btn = e.target.closest ? e.target.closest('button') : null;
   if (!btn || !pendingCard) return;
   pendingCard.tipo = btn.dataset.type;
   updateCardToggleUI();
 });
 
-cardOverlayCancel.addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  closeCardOverlay();
-});
+onOverlayTap(cardOverlayCancel, overlayOpenedAtFn, closeCardOverlay);
 
 // Annulla l'ultima azione registrata (gol o cartellino) in base a actionOrder.
-function undoLastGoal() {
-  if (actionOrder.length === 0) return;
-  var last = actionOrder.pop();
-  if (last === 'goal') {
-    if (marcatori.length === 0) return;
-    undoStack.push({ type: 'goal', event: marcatori.pop() });
-  } else {
-    if (cartellini.length === 0) return;
-    undoStack.push({ type: 'card', event: cartellini.pop() });
-  }
+// Descrizione breve di un evento per conferme e toast: "Gol 10 Riva (A) 13' PT"
+function describeEvent(type, ev) {
+  var what = type === 'goal' ? 'Gol' : (ev.tipo === 'rosso' ? 'Espulsione' : 'Ammonizione');
+  var team = ev.squadra === 'casa' ? squadre.casa.nome : squadre.trasferta.nome;
+  return what + ' ' + playerLabel(ev.giocatore, team, '') + ' ' + formatMinute(ev) +
+    (PHASE_SHORT[ev.fase] ? ' ' + PHASE_SHORT[ev.fase] : '');
+}
+
+function doUndo(type) {
+  actionOrder.pop();
+  var ev = type === 'goal' ? marcatori.pop() : cartellini.pop();
+  undoStack.push({ type: type, event: ev });
   updateScoreboard();
   saveMatch();
+  showToast('Annullato: ' + describeEvent(type, ev));
+}
+
+// Annulla l'ultima azione registrata (gol o cartellino). Se appartiene a una
+// fase precedente chiede conferma: annullare un gol del 2T durante i
+// supplementari cambierebbe il risultato che li ha determinati.
+function undoLastGoal() {
+  if (actionOrder.length === 0) return;
+  var type = actionOrder[actionOrder.length - 1];
+  var list = type === 'goal' ? marcatori : cartellini;
+  if (list.length === 0) { actionOrder.pop(); return; }
+  var ev = list[list.length - 1];
+  if (ev.fase === fase) { doUndo(type); return; }
+  var msg = 'L\'ultimo evento è di una fase precedente:\n' + describeEvent(type, ev) + '\n\nAnnullarlo comunque?';
+  if (type === 'goal' && (fase === '1TS' || fase === '2TS')) {
+    msg += '\nIl risultato dei tempi regolamentari cambierebbe.';
+  }
+  askConfirm(msg, { okLabel: 'Annulla evento', cancelLabel: 'Indietro', danger: true }).then(function(ok) {
+    if (!ok) return;
+    // l'ultima azione potrebbe essere cambiata mentre il modale era aperto
+    var cur = type === 'goal' ? marcatori : cartellini;
+    if (actionOrder[actionOrder.length - 1] !== type || cur[cur.length - 1] !== ev) return;
+    doUndo(type);
+  });
 }
 
 function redoLastGoal() {
@@ -4105,6 +4206,7 @@ function redoLastGoal() {
   }
   updateScoreboard();
   saveMatch();
+  showToast('Ripristinato: ' + describeEvent(restored.type, restored.event));
 }
 
 // ── Phase transitions ──
