@@ -1178,24 +1178,53 @@ html:not([data-kit-away]) .kit-away { display: none; }
   gap: 1.5vw;
 }
 
-.time-edit-inputs input {
-  width: clamp(80px, 14vw, 140px);
-  padding: 2vh 1vw;
+.time-edit-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2vh;
+}
+
+.time-edit-value {
+  min-width: clamp(100px, 16vw, 160px);
+  padding: 1.5vh 1vw;
   border: 2px solid var(--border-light);
   border-radius: 12px;
   background: var(--bg-surface);
   color: var(--text-primary);
-  font-size: clamp(36px, 8vh, 72px);
+  font-size: clamp(40px, 9vh, 80px);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   text-align: center;
-  -moz-appearance: textfield;
+  line-height: 1;
 }
 
-.time-edit-inputs input::-webkit-outer-spin-button,
-.time-edit-inputs input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+.time-step-row {
+  display: flex;
+  gap: 0.8vw;
+}
+
+.time-step {
+  min-width: clamp(56px, 7vw, 84px);
+  min-height: clamp(48px, 7vh, 64px);
+  border: 2px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--bg-element);
+  color: var(--text-primary);
+  font-size: clamp(16px, 2.4vh, 22px);
+  font-weight: 800;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-step:active {
+  background: #d4a017;
+  color: #000;
+}
+
+.time-edit-hint {
+  font-size: clamp(13px, 1.8vh, 16px);
+  color: var(--text-dim);
 }
 
 .time-edit-inputs .time-edit-sep {
@@ -1695,10 +1724,31 @@ html:not([data-kit-away]) .kit-away { display: none; }
 <div id="time-edit-overlay" class="time-edit-overlay">
   <div class="overlay-title">MODIFICA TEMPO</div>
   <div class="time-edit-inputs">
-    <input type="number" id="time-edit-min" min="0" max="99" placeholder="MM">
+    <div class="time-edit-field">
+      <div class="time-step-row">
+        <button type="button" class="time-step" data-step="300">+5</button>
+        <button type="button" class="time-step" data-step="60">+1</button>
+      </div>
+      <div id="time-edit-min" class="time-edit-value">00</div>
+      <div class="time-step-row">
+        <button type="button" class="time-step" data-step="-300">−5</button>
+        <button type="button" class="time-step" data-step="-60">−1</button>
+      </div>
+    </div>
     <span class="time-edit-sep">:</span>
-    <input type="number" id="time-edit-sec" min="0" max="59" placeholder="SS">
+    <div class="time-edit-field">
+      <div class="time-step-row">
+        <button type="button" class="time-step" data-step="10">+10</button>
+        <button type="button" class="time-step" data-step="1">+1</button>
+      </div>
+      <div id="time-edit-sec" class="time-edit-value">00</div>
+      <div class="time-step-row">
+        <button type="button" class="time-step" data-step="-10">−10</button>
+        <button type="button" class="time-step" data-step="-1">−1</button>
+      </div>
+    </div>
   </div>
+  <div class="time-edit-hint">Minuti a sinistra, secondi a destra</div>
   <div class="time-edit-actions">
     <button class="btn-time-confirm" id="btn-time-confirm">Conferma</button>
     <button class="btn-time-cancel" id="btn-time-cancel">Annulla</button>
@@ -1889,8 +1939,9 @@ function rigoriScoreOf(arr) {
 }
 
 // Formatta il minuto di un evento.
+// Durante il recupero: "20+2'" (minutoGioco = durata della fase, recupero = minuti oltre).
 function formatMinute(ev) {
-  return ev.minutoGioco + "'";
+  return ev.minutoGioco + (ev.recupero ? '+' + ev.recupero : '') + "'";
 }
 
 // Unisce gol e cartellini di una partita (live o storico), opzionalmente
@@ -2475,6 +2526,7 @@ onTap(btnSyncServer, function() {
 function showSetup() {
   if (timer.running) pause();
   stopTick();
+  matchActive = false;
   clearMatch();
   storicoSavedId = null;
   screenSetup.classList.add('active');
@@ -2485,6 +2537,7 @@ function showSetup() {
 }
 
 function showMatch() {
+  matchActive = true;
   screenSetup.classList.remove('active');
   screenMatch.classList.add('active');
   var ss = document.getElementById('screen-storico');
@@ -2590,8 +2643,12 @@ var undoStack = []; // redo stack: [{ type: 'goal'|'card', event: {...} }]
 
 var MATCH_KEY = 'subbuteo:matchState';
 var storicoSavedId = null; // id dell'entry storico se la partita corrente è già stata salvata
+var matchActive = false;   // true tra "Inizia partita" (o ripristino) e il ritorno al setup
+var lastSaveAt = 0;
+var AUTOSAVE_MS = 5000;    // salvataggio periodico mentre il timer gira
 
 function saveMatch() {
+  lastSaveAt = Date.now();
   // freeze elapsedMs if running
   var frozen = timer.elapsedMs;
   if (timer.running && timer.startedAt !== null) {
@@ -2611,8 +2668,21 @@ function saveMatch() {
     phaseDurations: PHASE_DURATIONS,
     storicoSavedId: storicoSavedId
   };
-  localStorage.setItem(MATCH_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(MATCH_KEY, JSON.stringify(state));
+  } catch (e) {}
 }
+
+// Se iPadOS chiude l'app in background, al riavvio si riparte dall'ultimo
+// salvataggio: salviamo quando la pagina viene nascosta o chiusa.
+function saveIfActive() {
+  if (matchActive) saveMatch();
+}
+
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'hidden') saveIfActive();
+});
+window.addEventListener('pagehide', saveIfActive);
 
 function clearMatch() {
   localStorage.removeItem(MATCH_KEY);
@@ -2900,7 +2970,7 @@ async function requestWakeLock() {
 }
 
 document.addEventListener('visibilitychange', function() {
-  if (document.visibilityState === 'visible') requestWakeLock();
+  if (document.visibilityState === 'visible' && matchActive) requestWakeLock();
 });
 
 // ── Format ms → MM:SS ──
@@ -2923,6 +2993,7 @@ var tickInterval = null;
 function updateDisplay() {
   var elapsed = getCurrentElapsed();
   timerDisplay.textContent = formatTime(elapsed);
+  if (timer.running && Date.now() - lastSaveAt >= AUTOSAVE_MS) saveMatch();
   if (timer.durataFaseMs !== null && elapsed >= timer.durataFaseMs) {
     timerDisplay.classList.add('expired');
     if (!beeped) { beeped = true; playWhistle((fase === '2T' || fase === '2TS') ? 3 : 2); }
@@ -2972,29 +3043,34 @@ var timeEditOverlay = document.getElementById('time-edit-overlay');
 var timeEditMin = document.getElementById('time-edit-min');
 var timeEditSec = document.getElementById('time-edit-sec');
 
+// Il tempo si modifica con bottoni +/− (niente tastiera software su iPad)
+var timeEditTotalSec = 0;
+var timeEditOpenedAt = 0;
+var TIME_EDIT_MAX_SEC = 99 * 60 + 59;
+
+function renderTimeEdit() {
+  timeEditMin.textContent = String(Math.floor(timeEditTotalSec / 60)).padStart(2, '0');
+  timeEditSec.textContent = String(timeEditTotalSec % 60).padStart(2, '0');
+}
+
 function openTimeEdit() {
   // Solo se in pausa e in una fase con timer
   if (timer.running) return;
   if (fase === 'RIGORI' || fase === 'FINITA') return;
-  var totalSec = Math.floor(timer.elapsedMs / 1000);
-  timeEditMin.value = Math.floor(totalSec / 60);
-  timeEditSec.value = totalSec % 60;
+  timeEditTotalSec = Math.floor(timer.elapsedMs / 1000);
+  renderTimeEdit();
+  timeEditOpenedAt = Date.now();
   timeEditOverlay.classList.add('open');
-  timeEditMin.focus();
-  timeEditMin.select();
 }
 
 function closeTimeEdit() {
   timeEditOverlay.classList.remove('open');
 }
 
+function isTimeEditOpen() { return timeEditOverlay.classList.contains('open'); }
+
 function confirmTimeEdit() {
-  var m = parseInt(timeEditMin.value) || 0;
-  var s = parseInt(timeEditSec.value) || 0;
-  if (m < 0) m = 0;
-  if (s < 0) s = 0;
-  if (s > 59) s = 59;
-  timer.elapsedMs = (m * 60 + s) * 1000;
+  timer.elapsedMs = timeEditTotalSec * 1000;
   beeped = timer.durataFaseMs !== null && timer.elapsedMs >= timer.durataFaseMs;
   updateDisplay();
   saveMatch();
@@ -3008,19 +3084,35 @@ timerDisplay.addEventListener('pointerdown', function(e) {
   }
 });
 
-document.getElementById('btn-time-confirm').addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  confirmTimeEdit();
+// Click (non pointerdown) + guardia anti tocco fantasma: il tap che ha
+// aperto l'overlay non deve premere il bottone che compare sotto il dito.
+function onOverlayTap(el, openedAtFn, fn) {
+  el.addEventListener('click', function(e) {
+    e.preventDefault();
+    if (Date.now() - openedAtFn() < GHOST_GUARD_MS) return;
+    fn(e);
+  });
+}
+
+var timeEditOpenedAtFn = function() { return timeEditOpenedAt; };
+
+timeEditOverlay.querySelectorAll('.time-step').forEach(function(btn) {
+  onOverlayTap(btn, timeEditOpenedAtFn, function() {
+    var step = parseInt(btn.dataset.step, 10);
+    timeEditTotalSec = Math.min(TIME_EDIT_MAX_SEC, Math.max(0, timeEditTotalSec + step));
+    renderTimeEdit();
+  });
 });
 
-document.getElementById('btn-time-cancel').addEventListener('pointerdown', function(e) {
-  e.preventDefault();
-  closeTimeEdit();
-});
+onOverlayTap(document.getElementById('btn-time-confirm'), timeEditOpenedAtFn, confirmTimeEdit);
+onOverlayTap(document.getElementById('btn-time-cancel'), timeEditOpenedAtFn, closeTimeEdit);
 
-// Conferma anche con Enter dentro i campi
-timeEditMin.addEventListener('keydown', function(e) { if (e.key === 'Enter') confirmTimeEdit(); });
-timeEditSec.addEventListener('keydown', function(e) { if (e.key === 'Enter') confirmTimeEdit(); });
+// Da tastiera (desktop): Enter conferma, Esc annulla
+document.addEventListener('keydown', function(e) {
+  if (!isTimeEditOpen() || isModalOpen()) return;
+  if (e.key === 'Enter') { e.preventDefault(); confirmTimeEdit(); }
+  else if (e.key === 'Escape') { e.preventDefault(); closeTimeEdit(); }
+});
 
 // ── Phase badges ──
 var rigoriPanel = document.getElementById('rigori-panel');
@@ -3231,9 +3323,25 @@ function updateScoreboard() {
   }
 }
 
+// Minuto di gioco corrente, arrotondato all'intero superiore. Oltre la
+// durata della fase diventa recupero: 20:34 in un tempo da 20' -> 20+1'.
 function getCurrentMinute() {
   var elapsed = getCurrentElapsed();
-  return Math.ceil(elapsed / 60000) || 1;
+  var dur = timer.durataFaseMs;
+  if (dur && elapsed > dur) {
+    return {
+      minutoGioco: Math.ceil(dur / 60000),
+      recupero: Math.max(1, Math.ceil((elapsed - dur) / 60000))
+    };
+  }
+  return { minutoGioco: Math.ceil(elapsed / 60000) || 1, recupero: 0 };
+}
+
+// Crea un evento (gol o cartellino) con il minuto catturato in precedenza
+function makeEvent(base, minute) {
+  base.minutoGioco = minute.minutoGioco;
+  if (minute.recupero) base.recupero = minute.recupero;
+  return base;
 }
 
 // ── Summary (FINITA screen) ──
@@ -3854,7 +3962,7 @@ var goalOverlay = document.getElementById('goal-overlay');
 var overlayTitle = document.getElementById('overlay-title');
 var overlayGrid = document.getElementById('overlay-grid');
 var overlayCancel = document.getElementById('overlay-cancel');
-var pendingGoal = null; // { squadra, minutoGioco, fase }
+var pendingGoal = null; // { squadra, minute: { minutoGioco, recupero }, fase }
 
 function openGoalOverlay(squadra) {
   if (fase === 'FINITA') return;
@@ -3862,16 +3970,15 @@ function openGoalOverlay(squadra) {
   var rosa = squadra === 'casa' ? squadre.casa.rosa : squadre.trasferta.rosa;
   var nome = squadra === 'casa' ? squadre.casa.nome : squadre.trasferta.nome;
 
-  pendingGoal = { squadra: squadra, minutoGioco: minuto, fase: fase };
-  overlayTitle.textContent = 'GOL ' + nome + ' — ' + minuto + "'";
+  pendingGoal = { squadra: squadra, minute: minuto, fase: fase };
+  overlayTitle.textContent = 'GOL ' + nome + ' — ' + formatMinute(minuto);
 
   populatePlayerGrid(overlayGrid, rosa, function(giocatore) {
-    marcatori.push({
+    marcatori.push(makeEvent({
       squadra: pendingGoal.squadra,
       giocatore: giocatore,
-      minutoGioco: pendingGoal.minutoGioco,
       fase: pendingGoal.fase
-    });
+    }, pendingGoal.minute));
     actionOrder.push('goal');
     undoStack = [];
     pendingGoal = null;
@@ -3901,19 +4008,18 @@ var cardOverlayGrid = document.getElementById('card-overlay-grid');
 var cardOverlayCancel = document.getElementById('card-overlay-cancel');
 var cardTeamGroup = document.getElementById('card-team-group');
 var cardTypeGroup = document.getElementById('card-type-group');
-var pendingCard = null; // { squadra, tipo, minutoGioco, fase }
+var pendingCard = null; // { squadra, tipo, minute: { minutoGioco, recupero }, fase }
 
 function renderCardPlayerGrid() {
   if (!pendingCard) return;
   var rosa = pendingCard.squadra === 'casa' ? squadre.casa.rosa : squadre.trasferta.rosa;
   populatePlayerGrid(cardOverlayGrid, rosa, function(giocatore) {
-    cartellini.push({
+    cartellini.push(makeEvent({
       squadra: pendingCard.squadra,
       giocatore: giocatore,
       tipo: pendingCard.tipo,
-      minutoGioco: pendingCard.minutoGioco,
       fase: pendingCard.fase
-    });
+    }, pendingCard.minute));
     actionOrder.push('card');
     undoStack = [];
     pendingCard = null;
@@ -3935,13 +4041,13 @@ function updateCardToggleUI() {
     b.classList.toggle('active', b.dataset.type === pendingCard.tipo);
   });
   var nomeSquadra = pendingCard.squadra === 'casa' ? squadre.casa.nome : squadre.trasferta.nome;
-  cardOverlayTitle.textContent = 'CARTELLINO ' + nomeSquadra + ' — ' + pendingCard.minutoGioco + "'";
+  cardOverlayTitle.textContent = 'CARTELLINO ' + nomeSquadra + ' — ' + formatMinute(pendingCard.minute);
 }
 
 function openCardOverlay() {
   if (fase === 'FINITA' || fase === 'RIGORI') return;
   var minuto = getCurrentMinute();
-  pendingCard = { squadra: 'casa', tipo: 'giallo', minutoGioco: minuto, fase: fase };
+  pendingCard = { squadra: 'casa', tipo: 'giallo', minute: minuto, fase: fase };
   updateCardToggleUI();
   renderCardPlayerGrid();
   cardOverlay.classList.add('open');
