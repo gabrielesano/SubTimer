@@ -1485,6 +1485,43 @@ html:not([data-kit-away]) .kit-away { display: none; }
   background: var(--border-light);
 }
 
+/* ── AVVISO NUOVA VERSIONE ── */
+.update-banner {
+  display: none;
+  position: fixed;
+  top: 1.5vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 450;
+  align-items: center;
+  gap: 1.2vw;
+  padding: 1vh 1.2vw 1vh 2vw;
+  background: var(--toast-bg);
+  border: 1px solid #d4a017;
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: clamp(14px, 2vh, 18px);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.update-banner.show { display: flex; }
+
+.update-btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.8vh 1.6vw;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.update-btn.primary { background: #d4a017; border-color: #d4a017; color: #000; }
+
 /* ── MODAL (sostituisce confirm/prompt/alert nativi) ── */
 .modal-overlay {
   display: none;
@@ -1806,6 +1843,13 @@ html:not([data-kit-away]) .kit-away { display: none; }
 
 <!-- ══ TOAST ══ -->
 <div id="toast" class="toast"></div>
+
+<!-- ══ AVVISO NUOVA VERSIONE ══ -->
+<div id="update-banner" class="update-banner" role="status">
+  <span>Nuova versione disponibile</span>
+  <button type="button" id="btn-update-reload" class="update-btn primary">Aggiorna</button>
+  <button type="button" id="btn-update-dismiss" class="update-btn" aria-label="Chiudi avviso">✕</button>
+</div>
 
 <!-- ══ MODAL (conferme, input testo, avvisi) ══ -->
 <div id="modal" class="modal-overlay">
@@ -4474,9 +4518,65 @@ if (saved) {
 // ═══════════════════════════════════════════
 // SERVICE WORKER
 // ═══════════════════════════════════════════
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw2.js');
+// La pagina viene caricata "prima dalla rete" dal service worker, quindi un
+// deploy arriva al primo avvio online. Se però l'app resta aperta in
+// background per giorni (iPad), al ritorno in primo piano controlliamo se
+// index.html è cambiato sul server e proponiamo di ricaricare.
+var updateBanner = document.getElementById('update-banner');
+var appVersionTag = null;
+
+function fetchAppVersionTag() {
+  return fetch('./', { method: 'HEAD', cache: 'no-store' }).then(function(r) {
+    if (!r.ok) return null;
+    return r.headers.get('ETag') || r.headers.get('Last-Modified');
+  }).catch(function() { return null; });
 }
+
+function showUpdateBanner() {
+  updateBanner.classList.add('show');
+}
+
+function checkForUpdate() {
+  fetchAppVersionTag().then(function(tag) {
+    if (!tag) return;
+    // Avvio offline: il riferimento viene letto al primo controllo online
+    if (!appVersionTag) { appVersionTag = tag; return; }
+    if (tag !== appVersionTag) showUpdateBanner();
+  });
+}
+
+fetchAppVersionTag().then(function(tag) { appVersionTag = tag; });
+
+document.getElementById('btn-update-reload').addEventListener('click', function() {
+  saveIfActive();
+  location.reload();
+});
+document.getElementById('btn-update-dismiss').addEventListener('click', function() {
+  updateBanner.classList.remove('show');
+});
+
+if ('serviceWorker' in navigator) {
+  var hadSwController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw2.js').then(function(reg) {
+    // Nuovo service worker attivato mentre la pagina è aperta
+    reg.addEventListener('updatefound', function() {
+      var nw = reg.installing;
+      if (!nw) return;
+      nw.addEventListener('statechange', function() {
+        if (nw.state === 'activated' && hadSwController) showUpdateBanner();
+      });
+    });
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'visible') {
+        try { reg.update().catch(function() {}); } catch (e) {}
+      }
+    });
+  }).catch(function() {});
+}
+
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') checkForUpdate();
+});
 
 // Chiede al browser di non cancellare localStorage in caso di poco spazio
 if (navigator.storage && navigator.storage.persist) {
