@@ -5,7 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="theme-color" content="#0d0d0d">
+<meta name="theme-color" content="#0d0d0d" id="meta-theme-color">
+<script>
+// Applica il tema salvato prima del primo paint (evita il flash del tema scuro)
+try {
+  if (localStorage.getItem('subbuteo:theme') === 'light') {
+    document.documentElement.classList.add('light-theme');
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f0f0f0');
+  }
+} catch (e) {}
+</script>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>SubbuteoBoard</title>
@@ -17,6 +26,12 @@
   --color-away: #f87171;
   --color-home-bg: #1e3a5f;
   --color-away-bg: #5f1e1e;
+  --color-home-on-bg: #60a5fa;
+  --color-away-on-bg: #f87171;
+  --kit-home: transparent;
+  --kit-away: transparent;
+  --kit-home-shorts: transparent;
+  --kit-away-shorts: transparent;
   /* Base palette */
   --bg-body: #0d0d0d;
   --bg-surface: #1a1a1a;
@@ -177,6 +192,28 @@ html, body {
   font-variant-numeric: tabular-nums;
 }
 
+.team-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+}
+
+/* Divisa: maglia (tinta unita o strisce) + bordo inferiore = pantaloncini */
+.kit {
+  display: inline-block;
+  flex-shrink: 0;
+  width: clamp(16px, 2.4vh, 26px);
+  height: clamp(20px, 3vh, 32px);
+  border-radius: 4px;
+  border: 1px solid var(--border-muted);
+  border-bottom-width: clamp(6px, 0.9vh, 10px);
+}
+.kit-home { background: var(--kit-home); border-bottom-color: var(--kit-home-shorts); }
+.kit-away { background: var(--kit-away); border-bottom-color: var(--kit-away-shorts); }
+html:not([data-kit-home]) .kit-home,
+html:not([data-kit-away]) .kit-away { display: none; }
+
 .team-home .team-score { color: var(--color-home); }
 .team-away .team-score { color: var(--color-away); }
 
@@ -265,12 +302,12 @@ html, body {
 
 .btn-goal-home {
   background: var(--color-home-bg);
-  color: var(--color-home);
+  color: var(--color-home-on-bg);
 }
 
 .btn-goal-away {
   background: var(--color-away-bg);
-  color: var(--color-away);
+  color: var(--color-away-on-bg);
 }
 
 .btn-undo {
@@ -804,9 +841,9 @@ html, body {
   font-weight: 800;
 }
 
-.r-kick-result.gol-home { background: var(--color-home-bg); color: var(--color-home); }
+.r-kick-result.gol-home { background: var(--color-home-bg); color: var(--color-home-on-bg); }
 .r-kick-result.err-home { background: var(--bg-element); color: var(--text-dim); }
-.r-kick-result.gol-away { background: var(--color-away-bg); color: var(--color-away); }
+.r-kick-result.gol-away { background: var(--color-away-bg); color: var(--color-away-on-bg); }
 .r-kick-result.err-away { background: var(--bg-element); color: var(--text-dim); }
 .r-kick-result.pending { background: var(--bg-surface); border: 1px dashed var(--border-light); color: transparent; }
 
@@ -1569,7 +1606,7 @@ html, body {
 
     <!-- Home team -->
     <div class="team team-home">
-      <div id="name-home" class="team-name">Italia</div>
+      <div class="team-name-row"><span class="kit kit-home"></span><div id="name-home" class="team-name">Italia</div></div>
       <div id="score-home" class="team-score">0</div>
       <ul id="scorers-home" class="scorers"></ul>
     </div>
@@ -1582,7 +1619,7 @@ html, body {
 
     <!-- Away team -->
     <div class="team team-away">
-      <div id="name-away" class="team-name">Unione Sovietica</div>
+      <div class="team-name-row"><div id="name-away" class="team-name">Unione Sovietica</div><span class="kit kit-away"></span></div>
       <div id="score-away" class="team-score">0</div>
       <ul id="scorers-away" class="scorers"></ul>
     </div>
@@ -1618,12 +1655,12 @@ html, body {
     <div class="summary-title">FINE PARTITA</div>
     <div class="summary-score">
       <div class="summary-team summary-team-home">
-        <div class="summary-team-name" id="summary-name-home"></div>
+        <div class="team-name-row"><span class="kit kit-home"></span><div class="summary-team-name" id="summary-name-home"></div></div>
         <div class="summary-team-score" id="summary-score-home">0</div>
       </div>
       <div class="summary-vs">—</div>
       <div class="summary-team summary-team-away">
-        <div class="summary-team-name" id="summary-name-away"></div>
+        <div class="team-name-row"><div class="summary-team-name" id="summary-name-away"></div><span class="kit kit-away"></span></div>
         <div class="summary-team-score" id="summary-score-away">0</div>
       </div>
     </div>
@@ -1954,22 +1991,119 @@ function darkenHex(hex, amount) {
   return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
+function hexToRgb(hex) {
+  return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+}
+
+function rgbToHex(rgb) {
+  return '#' + ((1 << 24) + (rgb[0] << 16) + (rgb[1] << 8) + rgb[2]).toString(16).slice(1);
+}
+
+function mixHex(a, b, t) {
+  var ra = hexToRgb(a), rb = hexToRgb(b);
+  return rgbToHex([0, 1, 2].map(function(i) { return Math.round(ra[i] + (rb[i] - ra[i]) * t); }));
+}
+
+// Luminanza relativa WCAG
+function relLum(hex) {
+  var c = hexToRgb(hex).map(function(v) {
+    v /= 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+
+function contrastRatio(a, b) {
+  var la = relLum(a), lb = relLum(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+// Distanza percettiva approssimata ("redmean"), 0..~765
+function colorDistance(a, b) {
+  var ra = hexToRgb(a), rb = hexToRgb(b);
+  var rmean = (ra[0] + rb[0]) / 2;
+  var dr = ra[0] - rb[0], dg = ra[1] - rb[1], db = ra[2] - rb[2];
+  return Math.sqrt((2 + rmean / 256) * dr * dr + 4 * dg * dg + (2 + (255 - rmean) / 256) * db * db);
+}
+
+// Schiarisce (su sfondo scuro) o scurisce (su sfondo chiaro) un colore
+// finché non raggiunge il contrasto minimo con lo sfondo.
+function ensureContrast(hex, bg, minRatio) {
+  var target = relLum(bg) < 0.5 ? '#ffffff' : '#000000';
+  var c = hex;
+  for (var i = 1; i <= 20 && contrastRatio(c, bg) < minRatio; i++) {
+    c = mixHex(hex, target, i / 20);
+  }
+  return c;
+}
+
+var DEFAULT_HOME_COLOR = '#60a5fa';
+var DEFAULT_AWAY_COLORS = ['#f87171', '#facc15', '#a3e635', '#c084fc'];
+var MIN_TEAM_DISTANCE = 120;
+
+function themeBg() {
+  return document.documentElement.classList.contains('light-theme') ? '#f0f0f0' : '#0d0d0d';
+}
+
+// Sfondo della divisa: tinta unita o strisce verticali/orizzontali
+function kitBackground(schema) {
+  var cols = schema.colori;
+  if (cols.length < 2 || schema.pattern === 'tinta-unita') return cols[0];
+  var deg = schema.pattern === 'strisce-orizzontali' ? '180deg' : '90deg';
+  var stops = [];
+  var w = 4;
+  for (var i = 0; i < cols.length; i++) {
+    stops.push(cols[i] + ' ' + (i * w) + 'px ' + ((i + 1) * w) + 'px');
+  }
+  return 'repeating-linear-gradient(' + deg + ', ' + stops.join(', ') + ')';
+}
+
+// Schemi della partita mostrata, per riapplicare i colori al cambio tema
+var currentHomeSchema = null;
+var currentAwaySchema = null;
+
+// Calcola i colori di casa e trasferta garantendo contrasto con lo sfondo
+// del tema e una distanza minima tra le due squadre: se la trasferta ha lo
+// stesso colore della casa usa un colore alternativo (secondo colore,
+// pantaloncini o un default).
+function computeTeamColors(homeSchema, awaySchema, bg) {
+  var homeBase = (homeSchema && homeSchema.colori && homeSchema.colori[0]) || DEFAULT_HOME_COLOR;
+  var home = ensureContrast(homeBase, bg, 3);
+
+  var candidates = [];
+  if (awaySchema && awaySchema.colori) candidates = candidates.concat(awaySchema.colori);
+  if (awaySchema && awaySchema.pantaloncini) candidates.push(awaySchema.pantaloncini);
+  candidates = candidates.concat(DEFAULT_AWAY_COLORS);
+  var away = null;
+  for (var i = 0; i < candidates.length; i++) {
+    if (!isHex(candidates[i])) continue;
+    var c = ensureContrast(candidates[i], bg, 3);
+    if (colorDistance(c, home) >= MIN_TEAM_DISTANCE) { away = c; break; }
+  }
+  if (!away) away = ensureContrast(DEFAULT_AWAY_COLORS[0], bg, 3);
+  return { home: home, away: away };
+}
+
 function applyTeamColors(homeSchema, awaySchema) {
-  var root = document.documentElement.style;
-  if (homeSchema && homeSchema.colori && homeSchema.colori.length > 0) {
-    root.setProperty('--color-home', homeSchema.colori[0]);
-    root.setProperty('--color-home-bg', darkenHex(homeSchema.colori[0], 0.55));
-  } else {
-    root.setProperty('--color-home', '#60a5fa');
-    root.setProperty('--color-home-bg', '#1e3a5f');
-  }
-  if (awaySchema && awaySchema.colori && awaySchema.colori.length > 0) {
-    root.setProperty('--color-away', awaySchema.colori[0]);
-    root.setProperty('--color-away-bg', darkenHex(awaySchema.colori[0], 0.55));
-  } else {
-    root.setProperty('--color-away', '#f87171');
-    root.setProperty('--color-away-bg', '#5f1e1e');
-  }
+  currentHomeSchema = homeSchema || null;
+  currentAwaySchema = awaySchema || null;
+  var html = document.documentElement;
+  var root = html.style;
+  var cols = computeTeamColors(currentHomeSchema, currentAwaySchema, themeBg());
+  [['home', cols.home, currentHomeSchema], ['away', cols.away, currentAwaySchema]].forEach(function(t) {
+    var side = t[0], color = t[1], schema = t[2];
+    var bg = darkenHex(color, 0.6);
+    root.setProperty('--color-' + side, color);
+    root.setProperty('--color-' + side + '-bg', bg);
+    root.setProperty('--color-' + side + '-on-bg', ensureContrast(color, bg, 3.5));
+    if (schema && schema.colori && schema.colori.length) {
+      root.setProperty('--kit-' + side, kitBackground(schema));
+      root.setProperty('--kit-' + side + '-shorts', schema.pantaloncini || schema.colori[0]);
+      html.setAttribute('data-kit-' + side, '1');
+    } else {
+      html.removeAttribute('data-kit-' + side);
+    }
+  });
 }
 
 function schemaLabel(schema) {
@@ -3945,18 +4079,18 @@ var btnThemeSetup = document.getElementById('btn-theme-setup');
 var btnThemeMatch = document.getElementById('btn-theme-match');
 
 function applyTheme(theme) {
-  if (theme === 'light') {
-    document.body.classList.add('light-theme');
-  } else {
-    document.body.classList.remove('light-theme');
-  }
+  document.documentElement.classList.toggle('light-theme', theme === 'light');
+  var meta = document.getElementById('meta-theme-color');
+  if (meta) meta.setAttribute('content', theme === 'light' ? '#f0f0f0' : '#0d0d0d');
+  // Il contrasto dei colori squadra dipende dallo sfondo del tema
+  applyTeamColors(currentHomeSchema, currentAwaySchema);
   var label = theme === 'light' ? 'Tema: chiaro' : 'Tema: scuro';
   btnThemeSetup.textContent = label;
   btnThemeMatch.textContent = label;
 }
 
 function toggleTheme() {
-  var current = document.body.classList.contains('light-theme') ? 'light' : 'dark';
+  var current = document.documentElement.classList.contains('light-theme') ? 'light' : 'dark';
   var next = current === 'light' ? 'dark' : 'light';
   try { localStorage.setItem(THEME_KEY, next); } catch(e) {}
   applyTheme(next);
