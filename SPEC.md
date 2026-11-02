@@ -38,7 +38,10 @@ serializzato in `localStorage` a ogni modifica sotto una chiave dedicata
 (es. `subbuteo:matchState`). Le rose giocatori vivono in una chiave
 separata (`subbuteo:rosters`) indipendente dalla partita corrente. Lo
 storico delle partite concluse vive in una terza chiave
-(`subbuteo:storico`) — vedi "Storico partite" più sotto.
+(`subbuteo:storico`) — vedi "Storico partite" più sotto. Le ultime
+scelte del setup (squadre e durate) vivono in `subbuteo:setup`
+(`{ casa, trasferta, durRegular, durExtra }`), il tema in
+`subbuteo:theme`.
 
 ### Stato partita
 
@@ -59,6 +62,7 @@ storico delle partite concluse vive in una terza chiave
     squadra: "casa" | "trasferta",
     giocatore: string,
     minutoGioco: number,       // minuto arrotondato all'intero superiore
+    recupero?: number,         // minuti di recupero (vedi "Logica timer")
     fase: string               // la fase in cui è stato segnato
   }>,
   cartellini: Array<{
@@ -66,14 +70,21 @@ storico delle partite concluse vive in una terza chiave
     giocatore: string,
     tipo: "giallo" | "rosso",
     minutoGioco: number,       // stessa convenzione dei gol
+    recupero?: number,
     fase: string
   }>,
   actionOrder: Array<"goal" | "card">,  // ordine cronologico di push per undo
   rigori: Array<{
     squadra: "casa" | "trasferta",
-    giocatore: string,
+    giocatore: string,         // tiratore, "" se non scelto
     esito: "gol" | "errore"
-  }>
+  }>,
+  phaseHistory: Array<{        // fasi lasciate andando avanti, per
+    fase: string,              // "Fase precedente"
+    elapsedMs: number
+  }>,
+  phaseDurations: { '1T', '2T', '1TS', '2TS' },
+  storicoSavedId: string | null  // id dell'entry storico, se già salvata
 }
 ```
 
@@ -117,10 +128,23 @@ N è il numero di maglia (opzionale), e il ruolo abbreviato tra parentesi:
 }
 ```
 
-Lo schema viene associato a ogni rosa tramite `rose-index.json`, copiato
-nello stato partita all'avvio, e usato per impostare i CSS custom
-properties `--color-home`, `--color-away`, `--color-home-bg`,
-`--color-away-bg` (quest'ultime calcolate con `darkenHex()`).
+Lo schema viene associato a ogni rosa tramite `rose-index.json` (o il
+campo `schema` di un file rosa importato), copiato nello stato partita
+all'avvio, e usato per impostare i CSS custom properties `--color-home`,
+`--color-away`, `--color-home-bg`, `--color-away-bg`,
+`--color-home-on-bg`, `--color-away-on-bg` (`applyTeamColors()`):
+
+- **Contrasto**: il colore viene schiarito (tema scuro) o scurito (tema
+  chiaro) finché non ha contrasto ≥ 3:1 con lo sfondo; viene ricalcolato
+  al cambio tema. Il testo dei bottoni gol ha contrasto ≥ 3.5:1 col loro
+  sfondo.
+- **Squadre dello stesso colore**: se la trasferta è troppo simile alla
+  casa (distanza percettiva < 120) usa, nell'ordine, gli altri colori
+  della maglia, i pantaloncini o un colore di default.
+- **Divisa**: accanto ai nomi (tabellone e riepilogo) uno swatch mostra la
+  maglia (tinta unita o strisce verticali/orizzontali) e i pantaloncini.
+
+I nomi delle squadre sono univoci e fanno da chiave nei menu di selezione.
 
 ### Rose predefinite e directory structure
 
@@ -195,6 +219,15 @@ risolve il problema della pausa: che l'utente metta in pausa prima o dopo
 l'inserimento del marcatore, il minuto catturato è lo stesso, perché si
 basa sul tempo giocato e non sul tempo reale.
 
+**Recupero**: oltre la durata della fase il minuto diventa
+`durata+recupero`: un gol a `20:34` in un tempo da 20' viene salvato come
+`minutoGioco: 20, recupero: 1` e mostrato `20+1'`. Gli eventi salvati
+prima di questa convenzione (senza `recupero`) restano validi.
+
+**Modifica del tempo**: tap sul timer in pausa apre un overlay con
+bottoni `+5/+1/−5/−1` minuti e `+10/+1/−10/−1` secondi (niente tastiera
+software). Conferma/Annulla, e da tastiera fisica Enter/Esc.
+
 ## Macchina a stati delle fasi
 
 Flusso lineare senza intervalli (scelta esplicita per uso casalingo):
@@ -225,16 +258,31 @@ transizione "fase successiva" guardando il punteggio calcolato.
 registrare sequenze di rigori alternati, ognuno con esito gol/errore.
 Quando matematicamente una squadra ha vinto, mostra il risultato finale
 ma lascia comunque la possibilità di passare manualmente a FINITA.
+Nei primi 5 tiri per squadra la serie è decisa appena una squadra non
+può più essere raggiunta, anche a metà turno (es. subito dopo il tiro
+della casa); ad oltranza si decide solo a parità di tiri.
+Prima di ogni tiro si può scegliere (facoltativo) il tiratore dalla
+rosa della squadra di turno; i giocatori che hanno già tirato hanno un
+badge `✓`. Il tiratore compare nel riepilogo e nell'export.
 
 **Fase FINITA**: quando la partita termina (dopo 2T, 2TS o RIGORI),
 l'interfaccia di gioco viene sostituita da una schermata di riepilogo
 (vedi sezione "Schermata riepilogo finale"). Il pannello riepilogo
 resta attivo finché l'utente non tappa "Nuova partita".
 
-**Navigazione indietro**: serve un modo per tornare alla fase precedente
-nel caso si prema "fase successiva" per sbaglio. Da collocare in un menu
-secondario (es. icona ingranaggio in alto) per evitare tap accidentali
-durante il gioco.
+**Navigazione indietro**: "◂ Fase precedente" nel menu ingranaggio, con
+conferma. Ogni passaggio in avanti salva in `phaseHistory` la fase
+lasciata e il suo tempo giocato; tornando indietro si ripristinano
+entrambi (es. da FINITA dopo un 2T non in parità si torna al 2T col suo
+tempo, non ai rigori). Regole:
+- da FINITA a RIGORI i rigori registrati restano;
+- da RIGORI a 2TS i rigori vengono cancellati, con avviso esplicito;
+- per partite salvate senza `phaseHistory` la fase precedente è ricavata
+  dal punteggio e il tempo è impostato alla durata della fase.
+
+**Nuova partita dal menu**: se la partita non è in FINITA chiede conferma
+("Abbandonare la partita in corso?"): la partita abbandonata non va nello
+storico.
 
 ## Interfaccia utente
 
@@ -250,7 +298,11 @@ Elementi:
   (default 5), in minuti.
 - Sezione "Gestione rose": permette di creare/modificare/eliminare squadre
   e i loro giocatori. Interfaccia semplice con lista squadre, e per ogni
-  squadra una lista editabile di nomi giocatori.
+  squadra una lista editabile di nomi giocatori. I nomi squadra sono
+  univoci (un duplicato viene rifiutato).
+- Le ultime squadre e durate scelte vengono ricordate (`subbuteo:setup`);
+  le durate sono limitate a 1–60 (regolamentari) e 1–30 (supplementari).
+- Sezione "Backup dati": esporta/importa rose e storico (vedi "Backup").
 - Bottone "Storico partite": apre la schermata storico (vedi sotto).
   Visibile solo se `subbuteo:storico` contiene almeno un'entry.
 - Bottone grande "Inizia partita" che inizializza lo stato e passa alla
@@ -328,8 +380,10 @@ partita" viene chiamato `clearMatch()` e si torna al setup.
 `FINITA` (cioè quando l'utente preme "Fase successiva" dall'ultima fase
 giocabile), una snapshot viene aggiunta in testa all'array
 `subbuteo:storico` in `localStorage`. Il salvataggio è automatico e
-avviene **una sola volta** per partita (un flag nello stato impedisce
-duplicati al reload). Vedi "Storico partite" più sotto per il formato.
+avviene **una sola volta** per partita (`storicoSavedId` nello stato
+impedisce duplicati al reload). Se si torna indietro da FINITA e la
+partita viene conclusa di nuovo, l'entry esistente viene aggiornata
+(stesso id e data). Vedi "Storico partite" più sotto per il formato.
 
 **Bottone Esporta**: in fondo al pannello di riepilogo, accanto al
 bottone "Nuova partita", compare un bottone "Esporta" che genera il
@@ -483,6 +537,16 @@ assegnare più cartellini allo stesso giocatore, l'app non sostituisce
 automaticamente due gialli con un rosso né blocca i gol di un giocatore
 espulso. È uno strumento di tracciamento, non un arbitro virtuale.
 
+Come aiuto visivo, nelle griglie giocatori (cartellini e gol) ogni
+giocatore mostra i cartellini già ricevuti; con un rosso o due gialli il
+bottone è attenuato. Al secondo giallo compare un avviso "⚠ Secondo
+giallo per …", senza altre conseguenze.
+
+**Annulla tra fasi**: se l'ultimo evento appartiene a una fase precedente
+(es. un gol del 2T mentre si giocano i supplementari), "Annulla" chiede
+conferma prima di rimuoverlo. Annulla e Ripristina mostrano un toast con
+l'evento coinvolto.
+
 All'overlay cartellino non si accede durante la fase RIGORI né a partita
 FINITA.
 
@@ -515,15 +579,27 @@ nome e nel frattempo il timer avanza. Quindi:
   molto più grande per punteggio e timer).
 - Layout in CSS Grid o Flexbox, dimensioni in `vh`/`vw` per adattarsi a
   schermi diversi senza scroll.
+- **Tap su schermate scorrevoli**: nella schermata partita i bottoni
+  reagiscono a `pointerdown` (latenza minima). Nelle schermate che
+  scorrono (setup, storico, riepilogo) usano il tap completo (`click`),
+  così uno swipe che parte su un bottone non lo attiva.
+- **Tocco fantasma**: un overlay aperto con `pointerdown` ignora i click
+  arrivati entro 350 ms dall'apertura (griglia giocatori, toggle,
+  bottoni del modale e della modifica tempo), altrimenti lo stesso tap
+  potrebbe premere il bottone comparso sotto il dito.
+- **Finestre di dialogo**: niente `confirm()`/`prompt()`/`alert()`
+  nativi; un modale proprio (`askConfirm`, `askText`, `showAlert`,
+  `showCopyText`) coerente col tema.
 
 ### Tema chiaro/scuro
 
 L'app supporta un tema chiaro e uno scuro. Il tema scuro è il default.
 I colori strutturali (sfondo, testo, bordi) sono definiti come CSS custom
-properties in `:root` (dark) e `.light-theme` (light). Toggle accessibile
-dalla schermata setup e dal menu ingranaggio durante la partita. La
-preferenza è salvata in `localStorage` sotto `subbuteo:theme` e
-ripristinata al caricamento.
+properties in `:root` (dark) e `.light-theme` (light) sull'elemento
+`<html>`. Toggle accessibile dalla schermata setup e dal menu ingranaggio
+durante la partita. La preferenza è salvata in `localStorage` sotto
+`subbuteo:theme` e ripristinata da uno script in `<head>` prima del primo
+paint (niente flash del tema scuro); il meta `theme-color` segue il tema.
 
 I colori semantici (verde gol, rosso errore, giallo cartellino, oro fase
 attiva, blu bottone fase) restano identici in entrambi i temi.
@@ -620,6 +696,25 @@ timer gira, bisogna salvare
 eventi discreti (pausa, gol, transizione fase) dove il valore è già
 stabile.
 
+**Scelta attuale**: entrambe. Oltre agli eventi discreti, mentre il timer
+gira lo stato viene salvato ogni 5 secondi e quando la pagina viene
+nascosta o chiusa (`visibilitychange`/`pagehide`), sempre col valore
+congelato. Così se iPadOS chiude l'app in background si perde al massimo
+qualche secondo, e al ripristino il timer resta in pausa.
+
+## Backup
+
+Dalla schermata setup, sezione "Backup dati":
+- **Esporta backup**: file JSON
+  `{ app: 'SubbuteoBoard', version: 1, exportedAt, rosters, storico }`.
+  Su iPad passa dal foglio di condivisione (salvataggio su File/iCloud),
+  altrove viene scaricato.
+- **Importa backup**: unisce i dati a quelli presenti — le rose con lo
+  stesso nome vengono sostituite, le partite dello storico aggiunte se il
+  loro `id` manca. Chiede conferma con il riepilogo di cosa importa.
+
+All'avvio l'app chiede `navigator.storage.persist()` (se disponibile).
+
 ## PWA
 
 File richiesti oltre a `index.html`:
@@ -627,9 +722,22 @@ File richiesti oltre a `index.html`:
 - `manifest.json`: nome, short_name, `display: standalone`,
   `orientation: landscape`, `start_url: /`, icone (almeno 192 e 512 px),
   `background_color` e `theme_color` coerenti col dark theme.
-- `sw.js`: service worker minimale che fa caching di `index.html`,
-  `manifest.json`, e delle icone in fase di `install`, e serve dalla cache
-  in fase di `fetch` (strategia cache-first per i file statici).
+- `sw2.js`: service worker. In `install` mette in cache pagina,
+  manifest, icone, logo, `rose-index.json` e i file delle rose. In
+  `fetch`:
+  - pagina e JSON: **prima la rete** (timeout 3 s, poi cache); ogni
+    risposta valida aggiorna la cache, quindi un deploy arriva al primo
+    avvio online senza cambiare `CACHE_NAME`;
+  - immagini: prima la cache;
+  - le chiavi di cache ignorano la query string (`rose-index.json?t=…`),
+    così la sincronizzazione delle rose funziona anche offline.
+  `CACHE_NAME` va cambiato solo se cambia la lista dei file precaricati o
+  la logica del service worker.
+- **Avviso aggiornamento**: al ritorno in primo piano la pagina confronta
+  l'`ETag`/`Last-Modified` di `index.html` con quello letto all'avvio (e
+  ascolta l'attivazione di un nuovo service worker); se è cambiato mostra
+  "Nuova versione disponibile" con il bottone Aggiorna (salva la partita
+  e ricarica).
 - Icona dell'app in PNG (placeholder accettabile per la prima versione).
 
 Il service worker va registrato da `index.html` con un
@@ -692,5 +800,6 @@ e focalizzata.
   check.
 - Firefox DevTools ha una modalità "responsive design" con preset iPad
   utile per verificare il layout senza passare al dispositivo reale.
-- Usare sempre eventi `pointerdown`/`pointerup` (unificano mouse e touch)
-  invece di `click` per ridurre la latenza percepita su touch.
+- Usare eventi `pointerdown`/`pointerup` (unificano mouse e touch) invece
+  di `click` per ridurre la latenza percepita su touch, tranne sulle
+  schermate scorrevoli e dentro gli overlay (vedi "Requisiti touch").
